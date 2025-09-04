@@ -1,0 +1,22 @@
+{
+  "name": "discord-voice-channel-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord do automatycznego tworzenia kanałów głosowych",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": ["discord", "bot", "voice", "channels"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "rss-parser": "^3.13.0",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
