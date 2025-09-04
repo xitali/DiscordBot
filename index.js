@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection, PermissionFlagsBits, ChannelType, REST, Routes } = require('discord.js');
 const { commands, getChannelPrefix } = require('./commands');
+const { processMessage } = require('./auto-moderation');
 const Parser = require('rss-parser');
 const cron = require('node-cron');
 
@@ -10,7 +11,9 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMessageReactions
+        GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers // Dodane dla Welcome/Leave System
     ]
 });
 
@@ -27,6 +30,11 @@ client.channelOwners = new Collection();
 // Przechowywanie konfiguracji reaction roles
 // Format: messageId -> { channelId, emoji, roleId }
 client.reactionRoles = new Collection();
+
+// Konfiguracja Welcome/Leave System
+const WELCOME_CHANNEL_ID = '1412923730958487703'; // Kanał ogólny
+const LOG_CHANNEL_ID = '1412925469338107945'; // Kanał moderacji
+const VOICE_CATEGORY_ID = '1412920201724563629'; // Kategoria głosowa
 
 // Konfiguracja RSS parser dla newsów Battlefield 6
 const fs = require('fs');
@@ -82,6 +90,10 @@ client.once('ready', async () => {
     // Ustawienie statusu bota
     client.user.setActivity('Tworzenie kanałów głosowych', { type: 'WATCHING' });
     
+    // Czyszczenie pustych kanałów głosowych przy starcie
+    console.log('🧹 Czyszczenie pustych kanałów głosowych...');
+    await cleanupEmptyVoiceChannels();
+    
     // Ładowanie już wysłanych newsów
     loadSentNews();
     
@@ -93,6 +105,52 @@ client.once('ready', async () => {
     await checkBF6News(); // Pierwsze sprawdzenie
     startBF6NewsScheduler(); // Uruchomienie harmonogramu
 });
+
+// Funkcja czyszczenia pustych kanałów głosowych przy starcie bota
+async function cleanupEmptyVoiceChannels() {
+    try {
+        for (const guild of client.guilds.cache.values()) {
+            const category = guild.channels.cache.get(VOICE_CATEGORY_ID);
+            if (!category) {
+                console.log(`⚠️ Nie znaleziono kategorii głosowej o ID: ${VOICE_CATEGORY_ID}`);
+                continue;
+            }
+            
+            const voiceChannels = category.children.cache.filter(channel => 
+                channel.type === ChannelType.GuildVoice && 
+                channel.members.size === 0 &&
+                (client.channelOwners.has(channel.id) || channel.name.startsWith('[BF6]')) // Kanały utworzone przez bota lub z prefiksem [BF6]
+            );
+            
+            let deletedCount = 0;
+            for (const channel of voiceChannels.values()) {
+                try {
+                    const ownerId = client.channelOwners.get(channel.id);
+                    await channel.delete('Czyszczenie pustych kanałów przy starcie bota');
+                    
+                    // Usuń z pamięci bota (tylko jeśli kanał był w pamięci)
+                    if (ownerId) {
+                        client.createdChannels.delete(ownerId);
+                        client.channelOwners.delete(channel.id);
+                    }
+                    
+                    deletedCount++;
+                    console.log(`🗑️ Usunięto pusty kanał: ${channel.name}`);
+                } catch (error) {
+                    console.error(`❌ Błąd podczas usuwania kanału ${channel.name}:`, error);
+                }
+            }
+            
+            if (deletedCount > 0) {
+                console.log(`✅ Wyczyszczono ${deletedCount} pustych kanałów głosowych`);
+            } else {
+                console.log(`✅ Brak pustych kanałów do wyczyszczenia`);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Błąd podczas czyszczenia pustych kanałów:', error);
+    }
+}
 
 // Event: Zmiana stanu kanału głosowego
 client.on('voiceStateUpdate', async (oldState, newState) => {
@@ -133,27 +191,65 @@ async function createUserVoiceChannel(member, guild, categoryId) {
             return;
         }
         
+        // Znajdź wymagane role
+        const zweryfikowanyRole = guild.roles.cache.find(role => role.name === 'Zweryfikowany');
+        const moderatorRole = guild.roles.cache.find(role => role.name === 'Moderator');
+        const adminRole = guild.roles.cache.find(role => role.name === 'Admin');
+        const bf6Role = guild.roles.cache.find(role => role.name === 'Battlefield 6 Polska');
+        
+        // Przygotuj uprawnienia dla kanału
+        const permissionOverwrites = [
+            {
+                id: guild.id, // @everyone - brak dostępu
+                deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
+            },
+            {
+                id: member.id, // Właściciel kanału
+                allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.Connect,
+                    PermissionFlagsBits.ManageChannels, // Pozwala na zmianę nazwy i limitu
+                    PermissionFlagsBits.MoveMembers
+                ],
+            }
+        ];
+        
+        // Dodaj uprawnienia dla każdej znalezionej roli
+        if (zweryfikowanyRole) {
+            permissionOverwrites.push({
+                id: zweryfikowanyRole.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
+            });
+        }
+        
+        if (moderatorRole) {
+            permissionOverwrites.push({
+                id: moderatorRole.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
+            });
+        }
+        
+        if (adminRole) {
+            permissionOverwrites.push({
+                id: adminRole.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
+            });
+        }
+        
+        if (bf6Role) {
+            permissionOverwrites.push({
+                id: bf6Role.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
+            });
+        }
+        
         // Utwórz nowy kanał głosowy
         const voiceChannel = await guild.channels.create({
             name: channelName,
             type: ChannelType.GuildVoice,
             parent: categoryId || null,
             userLimit: 5, // Domyślny limit 5 użytkowników
-            permissionOverwrites: [
-                {
-                    id: guild.id, // @everyone
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
-                },
-                {
-                    id: member.id, // Właściciel kanału
-                    allow: [
-                        PermissionFlagsBits.ViewChannel,
-                        PermissionFlagsBits.Connect,
-                        PermissionFlagsBits.ManageChannels, // Pozwala na zmianę nazwy i limitu
-                        PermissionFlagsBits.MoveMembers
-                    ],
-                }
-            ]
+            permissionOverwrites: permissionOverwrites
         });
         
         // Zapisz informacje o kanale
@@ -301,6 +397,322 @@ async function handleReactionRole(reaction, user, action) {
 
     } catch (error) {
         console.error('❌ Błąd podczas obsługi reaction role:', error);
+    }
+}
+
+// Obsługa wiadomości dla auto-moderacji
+client.on('messageCreate', async (message) => {
+    try {
+        await processMessage(client, message);
+    } catch (error) {
+        console.error('❌ Błąd w auto-moderacji:', error);
+    }
+});
+
+// Event: Nowy użytkownik dołączył do serwera
+client.on('guildMemberAdd', async (member) => {
+    try {
+        await handleMemberJoin(member);
+    } catch (error) {
+        console.error('❌ Błąd podczas obsługi dołączenia użytkownika:', error);
+    }
+});
+
+// Event: Użytkownik opuścił serwer
+client.on('guildMemberRemove', async (member) => {
+    try {
+        await handleMemberLeave(member);
+    } catch (error) {
+        console.error('❌ Błąd podczas obsługi opuszczenia serwera:', error);
+    }
+});
+
+// Event: Zmiana ról użytkownika
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    try {
+        await handleMemberUpdate(oldMember, newMember);
+    } catch (error) {
+        console.error('❌ Błąd podczas obsługi zmiany użytkownika:', error);
+    }
+});
+
+// Event: Ban użytkownika
+client.on('guildBanAdd', async (ban) => {
+    try {
+        await handleBanAdd(ban);
+    } catch (error) {
+        console.error('❌ Błąd podczas obsługi bana:', error);
+    }
+});
+
+// Event: Unban użytkownika
+client.on('guildBanRemove', async (ban) => {
+    try {
+        await handleBanRemove(ban);
+    } catch (error) {
+        console.error('❌ Błąd podczas obsługi unbana:', error);
+    }
+});
+
+// Event: Usunięcie wiadomości
+client.on('messageDelete', async (message) => {
+    try {
+        if (!message.author || message.author.bot) return;
+        await handleMessageDelete(message);
+    } catch (error) {
+        console.error('❌ Błąd podczas obsługi usunięcia wiadomości:', error);
+    }
+});
+
+// Event: Edycja wiadomości
+client.on('messageUpdate', async (oldMessage, newMessage) => {
+    try {
+        if (!oldMessage.author || oldMessage.author.bot) return;
+        if (oldMessage.content === newMessage.content) return;
+        await handleMessageUpdate(oldMessage, newMessage);
+    } catch (error) {
+        console.error('❌ Błąd podczas obsługi edycji wiadomości:', error);
+    }
+});
+
+// Funkcje rozszerzonego systemu logowania
+async function handleMemberUpdate(oldMember, newMember) {
+    const logChannel = newMember.guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (!logChannel) return;
+    
+    // Sprawdź zmiany ról
+    const oldRoles = oldMember.roles.cache;
+    const newRoles = newMember.roles.cache;
+    
+    const addedRoles = newRoles.filter(role => !oldRoles.has(role.id));
+    const removedRoles = oldRoles.filter(role => !newRoles.has(role.id));
+    
+    if (addedRoles.size > 0 || removedRoles.size > 0) {
+        const embed = {
+            color: 0x3498DB,
+            title: '🔄 Zmiana ról użytkownika',
+            fields: [
+                { name: 'Użytkownik', value: `${newMember.user.tag} (${newMember.user.id})`, inline: true }
+            ],
+            thumbnail: { url: newMember.user.displayAvatarURL({ dynamic: true }) },
+            timestamp: new Date().toISOString(),
+            footer: { text: 'System Logowania' }
+        };
+        
+        if (addedRoles.size > 0) {
+            embed.fields.push({
+                name: '➕ Dodane role',
+                value: addedRoles.map(role => `<@&${role.id}>`).join(', '),
+                inline: false
+            });
+        }
+        
+        if (removedRoles.size > 0) {
+            embed.fields.push({
+                name: '➖ Usunięte role',
+                value: removedRoles.map(role => `<@&${role.id}>`).join(', '),
+                inline: false
+            });
+        }
+        
+        await logChannel.send({ embeds: [embed] });
+    }
+    
+    // Sprawdź zmianę nicku
+    if (oldMember.nickname !== newMember.nickname) {
+        const embed = {
+            color: 0x9B59B6,
+            title: '📝 Zmiana nicku',
+            fields: [
+                { name: 'Użytkownik', value: `${newMember.user.tag} (${newMember.user.id})`, inline: true },
+                { name: 'Stary nick', value: oldMember.nickname || 'Brak', inline: true },
+                { name: 'Nowy nick', value: newMember.nickname || 'Brak', inline: true }
+            ],
+            thumbnail: { url: newMember.user.displayAvatarURL({ dynamic: true }) },
+            timestamp: new Date().toISOString(),
+            footer: { text: 'System Logowania' }
+        };
+        
+        await logChannel.send({ embeds: [embed] });
+    }
+}
+
+async function handleBanAdd(ban) {
+    const logChannel = ban.guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (!logChannel) return;
+    
+    const embed = {
+        color: 0xE74C3C,
+        title: '🔨 Użytkownik został zbanowany',
+        fields: [
+            { name: 'Użytkownik', value: `${ban.user.tag} (${ban.user.id})`, inline: true },
+            { name: 'Powód', value: ban.reason || 'Nie podano powodu', inline: true }
+        ],
+        thumbnail: { url: ban.user.displayAvatarURL({ dynamic: true }) },
+        timestamp: new Date().toISOString(),
+        footer: { text: 'System Logowania' }
+    };
+    
+    await logChannel.send({ embeds: [embed] });
+    console.log(`🔨 ${ban.user.tag} został zbanowany: ${ban.reason || 'Brak powodu'}`);
+}
+
+async function handleBanRemove(ban) {
+    const logChannel = ban.guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (!logChannel) return;
+    
+    const embed = {
+        color: 0x2ECC71,
+        title: '🔓 Użytkownik został odbanowany',
+        fields: [
+            { name: 'Użytkownik', value: `${ban.user.tag} (${ban.user.id})`, inline: true }
+        ],
+        thumbnail: { url: ban.user.displayAvatarURL({ dynamic: true }) },
+        timestamp: new Date().toISOString(),
+        footer: { text: 'System Logowania' }
+    };
+    
+    await logChannel.send({ embeds: [embed] });
+    console.log(`🔓 ${ban.user.tag} został odbanowany`);
+}
+
+async function handleMessageDelete(message) {
+    const logChannel = message.guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (!logChannel) return;
+    
+    // Nie loguj wiadomości usuniętych przez auto-moderację
+    if (message.content && message.content.length > 0) {
+        const embed = {
+            color: 0xE67E22,
+            title: '🗑️ Wiadomość została usunięta',
+            fields: [
+                { name: 'Autor', value: `${message.author.tag} (${message.author.id})`, inline: true },
+                { name: 'Kanał', value: `${message.channel}`, inline: true },
+                { name: 'Treść', value: message.content.substring(0, 1000) + (message.content.length > 1000 ? '...' : ''), inline: false }
+            ],
+            thumbnail: { url: message.author.displayAvatarURL({ dynamic: true }) },
+            timestamp: new Date().toISOString(),
+            footer: { text: 'System Logowania' }
+        };
+        
+        await logChannel.send({ embeds: [embed] });
+    }
+}
+
+async function handleMessageUpdate(oldMessage, newMessage) {
+    const logChannel = newMessage.guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (!logChannel) return;
+    
+    const embed = {
+        color: 0xF39C12,
+        title: '✏️ Wiadomość została edytowana',
+        fields: [
+            { name: 'Autor', value: `${newMessage.author.tag} (${newMessage.author.id})`, inline: true },
+            { name: 'Kanał', value: `${newMessage.channel}`, inline: true },
+            { name: 'Przed', value: oldMessage.content.substring(0, 500) + (oldMessage.content.length > 500 ? '...' : ''), inline: false },
+            { name: 'Po', value: newMessage.content.substring(0, 500) + (newMessage.content.length > 500 ? '...' : ''), inline: false },
+            { name: 'Link', value: `[Przejdź do wiadomości](${newMessage.url})`, inline: true }
+        ],
+        thumbnail: { url: newMessage.author.displayAvatarURL({ dynamic: true }) },
+        timestamp: new Date().toISOString(),
+        footer: { text: 'System Logowania' }
+    };
+    
+    await logChannel.send({ embeds: [embed] });
+}
+
+// Funkcje Welcome/Leave System
+async function handleMemberJoin(member) {
+    const welcomeChannel = member.guild.channels.cache.get(WELCOME_CHANNEL_ID);
+    const logChannel = member.guild.channels.cache.get(LOG_CHANNEL_ID);
+    
+    if (welcomeChannel) {
+        const welcomeEmbed = {
+            color: 0x00FF00,
+            title: '👋 Witamy na serwerze!',
+            description: `Witaj ${member.user}! Miło Cię widzieć na naszym serwerze **${member.guild.name}**!`,
+            fields: [
+                { name: '📋 Przeczytaj regulamin', value: 'Zapoznaj się z zasadami serwera', inline: true },
+                { name: '🎮 Baw się dobrze!', value: 'Życzymy miłej zabawy!', inline: true }
+            ],
+            thumbnail: { url: member.user.displayAvatarURL({ dynamic: true }) },
+            timestamp: new Date().toISOString(),
+            footer: { text: `Użytkownik #${member.guild.memberCount}` }
+        };
+        
+        await welcomeChannel.send({ embeds: [welcomeEmbed] });
+    }
+    
+    // Log do kanału moderacji
+    if (logChannel) {
+        const logEmbed = {
+            color: 0x00FF00,
+            title: '📥 Użytkownik dołączył',
+            fields: [
+                { name: 'Użytkownik', value: `${member.user.tag} (${member.user.id})`, inline: true },
+                { name: 'Konto utworzone', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
+                { name: 'Członek #', value: `${member.guild.memberCount}`, inline: true }
+            ],
+            thumbnail: { url: member.user.displayAvatarURL({ dynamic: true }) },
+            timestamp: new Date().toISOString(),
+            footer: { text: 'System Welcome/Leave' }
+        };
+        
+        await logChannel.send({ embeds: [logEmbed] });
+    }
+    
+    console.log(`👋 ${member.user.tag} dołączył do serwera ${member.guild.name}`);
+}
+
+async function handleMemberLeave(member) {
+    const welcomeChannel = member.guild.channels.cache.get(WELCOME_CHANNEL_ID);
+    const logChannel = member.guild.channels.cache.get(LOG_CHANNEL_ID);
+    
+    if (welcomeChannel) {
+        const leaveEmbed = {
+            color: 0xFF6B6B,
+            title: '👋 Żegnamy użytkownika',
+            description: `**${member.user.tag}** opuścił serwer. Żegnamy!`,
+            thumbnail: { url: member.user.displayAvatarURL({ dynamic: true }) },
+            timestamp: new Date().toISOString(),
+            footer: { text: `Pozostało ${member.guild.memberCount} członków` }
+        };
+        
+        await welcomeChannel.send({ embeds: [leaveEmbed] });
+    }
+    
+    // Log do kanału moderacji
+    if (logChannel) {
+        const joinedAt = member.joinedAt ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : 'Nieznane';
+        
+        const logEmbed = {
+            color: 0xFF6B6B,
+            title: '📤 Użytkownik opuścił serwer',
+            fields: [
+                { name: 'Użytkownik', value: `${member.user.tag} (${member.user.id})`, inline: true },
+                { name: 'Dołączył', value: joinedAt, inline: true },
+                { name: 'Pozostało członków', value: `${member.guild.memberCount}`, inline: true }
+            ],
+            thumbnail: { url: member.user.displayAvatarURL({ dynamic: true }) },
+            timestamp: new Date().toISOString(),
+            footer: { text: 'System Welcome/Leave' }
+        };
+        
+        await logChannel.send({ embeds: [logEmbed] });
+    }
+    
+    console.log(`👋 ${member.user.tag} opuścił serwer ${member.guild.name}`);
+}
+
+// Funkcja do wysyłania logów do kanału moderacji
+async function sendLogToModerationChannel(guild, embed) {
+    try {
+        const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+        if (logChannel) {
+            await logChannel.send({ embeds: [embed] });
+        }
+    } catch (error) {
+        console.error('Błąd podczas wysyłania loga do kanału moderacji:', error);
     }
 }
 

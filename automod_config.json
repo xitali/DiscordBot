@@ -1,8 +1,9 @@
 {
   "profanityFilter": {
     "enabled": true,
-    "action": "delete",
+    "action": "warn",
     "timeoutDuration": 300000,
+    "exemptRoles": ["Admin"],
     "logViolations": true
   },
   "spamProtection": {

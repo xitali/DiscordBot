@@ -8,5 +8,233 @@
       "timestamp": "2025-09-04T18:16:54.888Z",
       "duration": null
     }
+  ],
+  "377156474968866818": [
+    {
+      "id": "1757014332030",
+      "type": "warn",
+      "reason": "test",
+      "moderator": "mun1o93",
+      "timestamp": "2025-09-04T19:32:12.030Z",
+      "duration": null
+    },
+    {
+      "id": "1757015825149",
+      "type": "warn",
+      "reason": "Użycie niedozwolonych słów",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:05.149Z",
+      "duration": null
+    },
+    {
+      "id": "1757015837717",
+      "type": "warn",
+      "reason": "Użycie niedozwolonych słów",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:17.717Z",
+      "duration": null
+    },
+    {
+      "id": "1757015849563",
+      "type": "warn",
+      "reason": "Użycie niedozwolonych słów",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:29.563Z",
+      "duration": null
+    },
+    {
+      "id": "1757015850060",
+      "type": "warn",
+      "reason": "Użycie niedozwolonych słów",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:30.060Z",
+      "duration": null
+    },
+    {
+      "id": "1757015856341",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (5/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:36.341Z",
+      "duration": null
+    },
+    {
+      "id": "1757015856834",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (6/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:36.834Z",
+      "duration": null
+    },
+    {
+      "id": "1757015864367",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (7/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:44.367Z",
+      "duration": null
+    },
+    {
+      "id": "1757015869091",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (8/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:49.091Z",
+      "duration": null
+    },
+    {
+      "id": "1757015869361",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (9/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:49.361Z",
+      "duration": null
+    },
+    {
+      "id": "1757015869780",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (10/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:49.780Z",
+      "duration": null
+    },
+    {
+      "id": "1757015870082",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (11/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:50.082Z",
+      "duration": null
+    },
+    {
+      "id": "1757015870333",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (12/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:50.333Z",
+      "duration": null
+    },
+    {
+      "id": "1757015875286",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (13/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:55.286Z",
+      "duration": null
+    },
+    {
+      "id": "1757015875629",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (14/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:55.629Z",
+      "duration": null
+    },
+    {
+      "id": "1757015876786",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (15/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:56.786Z",
+      "duration": null
+    },
+    {
+      "id": "1757015877192",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (16/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:57.192Z",
+      "duration": null
+    },
+    {
+      "id": "1757015877814",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (17/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:57.814Z",
+      "duration": null
+    },
+    {
+      "id": "1757015878098",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (18/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:58.098Z",
+      "duration": null
+    },
+    {
+      "id": "1757015878423",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (19/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:58.423Z",
+      "duration": null
+    },
+    {
+      "id": "1757015878759",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (20/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:57:58.759Z",
+      "duration": null
+    },
+    {
+      "id": "1757015883649",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (21/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:58:03.649Z",
+      "duration": null
+    },
+    {
+      "id": "1757015883893",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (22/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:58:03.893Z",
+      "duration": null
+    },
+    {
+      "id": "1757015884159",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (23/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:58:04.159Z",
+      "duration": null
+    },
+    {
+      "id": "1757015884460",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (24/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:58:04.460Z",
+      "duration": null
+    },
+    {
+      "id": "1757015884706",
+      "type": "auto-kick",
+      "reason": "Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (25/5)",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:58:04.706Z",
+      "duration": null
+    },
+    {
+      "id": "1757016148092",
+      "type": "ban",
+      "reason": "Test",
+      "moderator": "mun1o93",
+      "timestamp": "2025-09-04T20:02:28.092Z",
+      "duration": null
+    }
+  ],
+  "1266541457477734400": [
+    {
+      "id": "1757014896664",
+      "type": "warn",
+      "reason": "Użycie niedozwolonych słów",
+      "moderator": "AutoMod",
+      "timestamp": "2025-09-04T19:41:36.664Z",
+      "duration": null
+    }
   ]
 }

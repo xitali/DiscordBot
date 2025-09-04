@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { commands: moderationCommands } = require('./moderation');
 
 // Komenda /config do zmiany nazw kanałów przez administratorów
 const configCommand = {
@@ -349,6 +350,80 @@ async function handleAuthSetup(interaction, client, channelName, messageId, emoj
     }
 }
 
+// Komenda /clear do masowego usuwania wiadomości
+const clearCommand = {
+    data: new SlashCommandBuilder()
+        .setName('clear')
+        .setDescription('Usuń określoną liczbę wiadomości z kanału')
+        .addIntegerOption(option =>
+            option.setName('amount')
+                .setDescription('Liczba wiadomości do usunięcia (1-100)')
+                .setRequired(true)
+                .setMinValue(1)
+                .setMaxValue(100))
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('Usuń wiadomości tylko od tego użytkownika')
+                .setRequired(false))
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+    
+    async execute(interaction, client) {
+        const amount = interaction.options.getInteger('amount');
+        const targetUser = interaction.options.getUser('user');
+        
+        try {
+            await interaction.deferReply({ ephemeral: true });
+            
+            // Pobierz wiadomości z kanału
+            const messages = await interaction.channel.messages.fetch({ limit: 100 });
+            
+            let messagesToDelete;
+            if (targetUser) {
+                // Filtruj wiadomości od określonego użytkownika
+                messagesToDelete = messages.filter(msg => msg.author.id === targetUser.id).first(amount);
+            } else {
+                // Pobierz określoną liczbę najnowszych wiadomości
+                messagesToDelete = messages.first(amount);
+            }
+            
+            if (messagesToDelete.length === 0) {
+                return await interaction.editReply({
+                    content: '❌ Nie znaleziono wiadomości do usunięcia.'
+                });
+            }
+            
+            // Usuń wiadomości
+            const deleted = await interaction.channel.bulkDelete(messagesToDelete, true);
+            
+            // Wyślij potwierdzenie
+            const userText = targetUser ? ` od użytkownika ${targetUser.tag}` : '';
+            await interaction.editReply({
+                content: `✅ Usunięto ${deleted.size} wiadomości${userText}.`
+            });
+            
+            // Wyślij log do kanału moderacji
+            await sendLogToModerationChannel(client, {
+                title: '🗑️ Masowe usuwanie wiadomości',
+                description: `**Moderator:** ${interaction.user.tag}\n**Kanał:** ${interaction.channel}\n**Liczba usuniętych:** ${deleted.size}${targetUser ? `\n**Cel:** ${targetUser.tag}` : ''}`,
+                color: 0xFF6B6B,
+                timestamp: new Date()
+            });
+            
+        } catch (error) {
+            console.error('❌ Błąd podczas usuwania wiadomości:', error);
+            
+            let errorMessage = '❌ Wystąpił błąd podczas usuwania wiadomości.';
+            if (error.code === 50034) {
+                errorMessage = '❌ Nie można usunąć wiadomości starszych niż 14 dni.';
+            } else if (error.code === 50013) {
+                errorMessage = '❌ Brak uprawnień do usuwania wiadomości.';
+            }
+            
+            await interaction.editReply({ content: errorMessage });
+        }
+    }
+};
+
 // Funkcja pomocnicza do wyciągnięcia prefiksu z nazwy kanału
 function getChannelPrefix(channelName) {
     const match = channelName.match(/^(\[.*?\])/); // Znajdź tekst w nawiasach kwadratowych na początku
@@ -356,6 +431,6 @@ function getChannelPrefix(channelName) {
 }
 
 module.exports = {
-    commands: [configCommand, channelCommand, authCommand],
+    commands: [configCommand, channelCommand, authCommand, clearCommand, ...moderationCommands],
     getChannelPrefix
 };
