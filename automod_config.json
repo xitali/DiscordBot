@@ -1,0 +1,19 @@
+{
+  "profanityFilter": {
+    "enabled": true,
+    "action": "delete",
+    "timeoutDuration": 300000,
+    "logViolations": true
+  },
+  "spamProtection": {
+    "enabled": true,
+    "maxMessages": 5,
+    "timeWindow": 10000,
+    "duplicateThreshold": 3,
+    "action": "timeout",
+    "timeoutDuration": 600000,
+    "logViolations": true
+  },
+  "exemptRoles": [],
+  "exemptChannels": []
+}
