@@ -1,5 +1,4 @@
 # Pliki środowiska
-.env
 .env.local
 .env.production
 
