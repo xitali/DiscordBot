@@ -264,17 +264,50 @@ async function handleVoiceStateUpdate(oldState, newState) {
 // Funkcja tworzenia prostego kanału głosowego
 async function createSimpleVoiceChannel(member, guild, categoryId, channelName) {
     try {
+        // Znajdź role na serwerze
+        const zweryfikowanyRole = guild.roles.cache.find(role => role.name === 'Zweryfikowany');
+        const moderatorRole = guild.roles.cache.find(role => role.name === 'Moderator');
+        const adminRole = guild.roles.cache.find(role => role.name === 'Admin');
+        
+        const permissionOverwrites = [
+            {
+                id: guild.roles.everyone.id, // @everyone
+                deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect]
+            },
+            {
+                id: member.id, // Właściciel kanału
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers]
+            }
+        ];
+        
+        // Dodaj uprawnienia dla ról jeśli istnieją
+        if (zweryfikowanyRole) {
+            permissionOverwrites.push({
+                id: zweryfikowanyRole.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect]
+            });
+        }
+        
+        if (moderatorRole) {
+            permissionOverwrites.push({
+                id: moderatorRole.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers]
+            });
+        }
+        
+        if (adminRole) {
+            permissionOverwrites.push({
+                id: adminRole.id,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers]
+            });
+        }
+        
         const channel = await guild.channels.create({
             name: channelName,
             type: ChannelType.GuildVoice,
             parent: categoryId,
             userLimit: 5, // Domyślny limit 5 osób
-            permissionOverwrites: [
-                {
-                    id: member.id,
-                    allow: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers]
-                }
-            ]
+            permissionOverwrites: permissionOverwrites
         });
         
         // Zapisz w mapach bota
