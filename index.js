@@ -281,7 +281,26 @@ async function createSimpleVoiceChannel(member, guild, categoryId, channelName) 
             },
             {
                 id: member.id, // Właściciel kanału
-                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers]
+                allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.Connect,
+                    PermissionFlagsBits.Speak,
+                    PermissionFlagsBits.Stream,
+                    PermissionFlagsBits.UseSoundboard,
+                    PermissionFlagsBits.UseExternalSounds,
+                    PermissionFlagsBits.UseVAD,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.EmbedLinks,
+                    PermissionFlagsBits.AttachFiles,
+                    PermissionFlagsBits.AddReactions,
+                    PermissionFlagsBits.UseExternalEmojis,
+                    PermissionFlagsBits.UseExternalStickers,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.UseApplicationCommands,
+                    PermissionFlagsBits.StartEmbeddedActivities,
+                    PermissionFlagsBits.MuteMembers,
+                    PermissionFlagsBits.DeafenMembers
+                ]
             }
         ];
         
@@ -289,21 +308,81 @@ async function createSimpleVoiceChannel(member, guild, categoryId, channelName) 
         if (zweryfikowanyRole) {
             permissionOverwrites.push({
                 id: zweryfikowanyRole.id,
-                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect]
+                allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.Connect,
+                    PermissionFlagsBits.Speak,
+                    PermissionFlagsBits.Stream,
+                    PermissionFlagsBits.UseSoundboard,
+                    PermissionFlagsBits.UseExternalSounds,
+                    PermissionFlagsBits.UseVAD,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.EmbedLinks,
+                    PermissionFlagsBits.AttachFiles,
+                    PermissionFlagsBits.AddReactions,
+                    PermissionFlagsBits.UseExternalEmojis,
+                    PermissionFlagsBits.UseExternalStickers,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.UseApplicationCommands,
+                    PermissionFlagsBits.StartEmbeddedActivities
+                ]
             });
         }
         
         if (moderatorRole) {
             permissionOverwrites.push({
                 id: moderatorRole.id,
-                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers]
+                allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.Connect,
+                    PermissionFlagsBits.Speak,
+                    PermissionFlagsBits.Stream,
+                    PermissionFlagsBits.UseSoundboard,
+                    PermissionFlagsBits.UseExternalSounds,
+                    PermissionFlagsBits.UseVAD,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.EmbedLinks,
+                    PermissionFlagsBits.AttachFiles,
+                    PermissionFlagsBits.AddReactions,
+                    PermissionFlagsBits.UseExternalEmojis,
+                    PermissionFlagsBits.UseExternalStickers,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.UseApplicationCommands,
+                    PermissionFlagsBits.StartEmbeddedActivities,
+                    PermissionFlagsBits.MoveMembers,
+                    PermissionFlagsBits.MuteMembers,
+                    PermissionFlagsBits.DeafenMembers
+                ]
             });
         }
         
         if (adminRole) {
             permissionOverwrites.push({
                 id: adminRole.id,
-                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers]
+                allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.Connect,
+                    PermissionFlagsBits.Speak,
+                    PermissionFlagsBits.Stream,
+                    PermissionFlagsBits.UseSoundboard,
+                    PermissionFlagsBits.UseExternalSounds,
+                    PermissionFlagsBits.UseVAD,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.EmbedLinks,
+                    PermissionFlagsBits.AttachFiles,
+                    PermissionFlagsBits.AddReactions,
+                    PermissionFlagsBits.UseExternalEmojis,
+                    PermissionFlagsBits.UseExternalStickers,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.UseApplicationCommands,
+                    PermissionFlagsBits.StartEmbeddedActivities,
+                    PermissionFlagsBits.ManageChannels,
+                    PermissionFlagsBits.MoveMembers,
+                    PermissionFlagsBits.MuteMembers,
+                    PermissionFlagsBits.DeafenMembers,
+                    PermissionFlagsBits.ManageMessages,
+                    PermissionFlagsBits.ManageRoles
+                ]
             });
         }
         
