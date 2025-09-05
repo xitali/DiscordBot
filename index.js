@@ -286,18 +286,14 @@ async function createSimpleVoiceChannel(member, guild, categoryId, channelName) 
                     PermissionFlagsBits.Connect,
                     PermissionFlagsBits.Speak,
                     PermissionFlagsBits.Stream,
-                    PermissionFlagsBits.UseSoundboard,
-                    PermissionFlagsBits.UseExternalSounds,
                     PermissionFlagsBits.UseVAD,
                     PermissionFlagsBits.SendMessages,
                     PermissionFlagsBits.EmbedLinks,
                     PermissionFlagsBits.AttachFiles,
                     PermissionFlagsBits.AddReactions,
                     PermissionFlagsBits.UseExternalEmojis,
-                    PermissionFlagsBits.UseExternalStickers,
                     PermissionFlagsBits.ReadMessageHistory,
                     PermissionFlagsBits.UseApplicationCommands,
-                    PermissionFlagsBits.StartEmbeddedActivities,
                     PermissionFlagsBits.MuteMembers,
                     PermissionFlagsBits.DeafenMembers
                 ]
@@ -313,18 +309,14 @@ async function createSimpleVoiceChannel(member, guild, categoryId, channelName) 
                     PermissionFlagsBits.Connect,
                     PermissionFlagsBits.Speak,
                     PermissionFlagsBits.Stream,
-                    PermissionFlagsBits.UseSoundboard,
-                    PermissionFlagsBits.UseExternalSounds,
                     PermissionFlagsBits.UseVAD,
                     PermissionFlagsBits.SendMessages,
                     PermissionFlagsBits.EmbedLinks,
                     PermissionFlagsBits.AttachFiles,
                     PermissionFlagsBits.AddReactions,
                     PermissionFlagsBits.UseExternalEmojis,
-                    PermissionFlagsBits.UseExternalStickers,
                     PermissionFlagsBits.ReadMessageHistory,
-                    PermissionFlagsBits.UseApplicationCommands,
-                    PermissionFlagsBits.StartEmbeddedActivities
+                    PermissionFlagsBits.UseApplicationCommands
                 ]
             });
         }
@@ -337,18 +329,14 @@ async function createSimpleVoiceChannel(member, guild, categoryId, channelName) 
                     PermissionFlagsBits.Connect,
                     PermissionFlagsBits.Speak,
                     PermissionFlagsBits.Stream,
-                    PermissionFlagsBits.UseSoundboard,
-                    PermissionFlagsBits.UseExternalSounds,
                     PermissionFlagsBits.UseVAD,
                     PermissionFlagsBits.SendMessages,
                     PermissionFlagsBits.EmbedLinks,
                     PermissionFlagsBits.AttachFiles,
                     PermissionFlagsBits.AddReactions,
                     PermissionFlagsBits.UseExternalEmojis,
-                    PermissionFlagsBits.UseExternalStickers,
                     PermissionFlagsBits.ReadMessageHistory,
                     PermissionFlagsBits.UseApplicationCommands,
-                    PermissionFlagsBits.StartEmbeddedActivities,
                     PermissionFlagsBits.MoveMembers,
                     PermissionFlagsBits.MuteMembers,
                     PermissionFlagsBits.DeafenMembers
@@ -364,24 +352,19 @@ async function createSimpleVoiceChannel(member, guild, categoryId, channelName) 
                     PermissionFlagsBits.Connect,
                     PermissionFlagsBits.Speak,
                     PermissionFlagsBits.Stream,
-                    PermissionFlagsBits.UseSoundboard,
-                    PermissionFlagsBits.UseExternalSounds,
                     PermissionFlagsBits.UseVAD,
                     PermissionFlagsBits.SendMessages,
                     PermissionFlagsBits.EmbedLinks,
                     PermissionFlagsBits.AttachFiles,
                     PermissionFlagsBits.AddReactions,
                     PermissionFlagsBits.UseExternalEmojis,
-                    PermissionFlagsBits.UseExternalStickers,
                     PermissionFlagsBits.ReadMessageHistory,
                     PermissionFlagsBits.UseApplicationCommands,
-                    PermissionFlagsBits.StartEmbeddedActivities,
                     PermissionFlagsBits.ManageChannels,
                     PermissionFlagsBits.MoveMembers,
                     PermissionFlagsBits.MuteMembers,
                     PermissionFlagsBits.DeafenMembers,
-                    PermissionFlagsBits.ManageMessages,
-                    PermissionFlagsBits.ManageRoles
+                    PermissionFlagsBits.ManageMessages
                 ]
             });
         }
