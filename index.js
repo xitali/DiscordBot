@@ -242,6 +242,10 @@ async function handleVoiceStateUpdate(oldState, newState) {
             await newState.member.voice.setChannel(existingChannel.id);
             client.createdChannels.set(newState.member.id, existingChannel.id);
             client.channelOwners.set(existingChannel.id, newState.member.id);
+        } else {
+            // Utwórz nowy kanał
+            console.log(`🆕 Tworzę nowy kanał dla ${newState.member.displayName}: ${channelName}`);
+            await createSimpleVoiceChannel(newState.member, newState.guild, voiceCategoryId, channelName);
         } 
     }
     
