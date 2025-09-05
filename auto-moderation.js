@@ -20,7 +20,7 @@ const PROFANITY_LIST = [
 // Domyślna konfiguracja
 const DEFAULT_CONFIG = {
     profanityFilter: {
-        enabled: true,
+        enabled: false, // Domyślnie wyłączone
         action: 'warn', // delete, warn, timeout, kick, ban
         timeoutDuration: 300000, // 5 minut w milisekundach
         exemptRoles: ['Admin'],
@@ -31,7 +31,7 @@ const DEFAULT_CONFIG = {
         maxMessages: 5,
         timeWindow: 10000, // 10 sekund
         action: 'timeout',
-        timeoutDuration: 600000, // 10 minut
+        timeoutDuration: 60000, // 60 sekund
         exemptRoles: ['Admin'],
         exemptChannels: []
     }
@@ -42,6 +42,7 @@ const CONFIG_FILE = path.join(__dirname, 'automod_config.json');
 const HISTORY_FILE = path.join(__dirname, 'moderation_history.json');
 const SPAM_TRACKER_FILE = path.join(__dirname, 'spam_tracker.json');
 const PROFANITY_WARNINGS_FILE = path.join(__dirname, 'profanity_warnings.json');
+const SPAM_PENALTIES_FILE = path.join(__dirname, 'spam_penalties.json');
 
 // Ładowanie konfiguracji
 function loadConfig() {
@@ -51,7 +52,7 @@ function loadConfig() {
             return { ...DEFAULT_CONFIG, ...JSON.parse(data) };
         }
     } catch (error) {
-        console.error('Błąd ładowania konfiguracji auto-moderacji:', error);
+
     }
     return DEFAULT_CONFIG;
 }
@@ -61,7 +62,7 @@ function saveConfig(config) {
     try {
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
     } catch (error) {
-        console.error('Błąd zapisywania konfiguracji auto-moderacji:', error);
+
     }
 }
 
@@ -73,7 +74,7 @@ function loadModerationHistory() {
             return JSON.parse(data);
         }
     } catch (error) {
-        console.error('Błąd ładowania historii moderacji:', error);
+
     }
     return {}; // Zwracaj obiekt zamiast tablicy dla nowego formatu
 }
@@ -83,7 +84,7 @@ function saveModerationHistory(history) {
     try {
         fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2));
     } catch (error) {
-        console.error('Błąd zapisywania historii moderacji:', error);
+
     }
 }
 
@@ -174,7 +175,7 @@ function loadProfanityWarnings() {
             return JSON.parse(data);
         }
     } catch (error) {
-        console.error('Błąd ładowania ostrzeżeń za przekleństwa:', error);
+
     }
     return {};
 }
@@ -183,7 +184,7 @@ function saveProfanityWarnings(warnings) {
     try {
         fs.writeFileSync(PROFANITY_WARNINGS_FILE, JSON.stringify(warnings, null, 2));
     } catch (error) {
-        console.error('Błąd zapisywania ostrzeżeń za przekleństwa:', error);
+
     }
 }
 
@@ -276,6 +277,65 @@ function cleanOldWarnings() {
     saveProfanityWarnings(warnings);
 }
 
+// Ładowanie kar za spam
+function loadSpamPenalties() {
+    try {
+        if (fs.existsSync(SPAM_PENALTIES_FILE)) {
+            const data = fs.readFileSync(SPAM_PENALTIES_FILE, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        
+    }
+    return {};
+}
+
+// Zapisywanie kar za spam
+function saveSpamPenalties(penalties) {
+    try {
+        fs.writeFileSync(SPAM_PENALTIES_FILE, JSON.stringify(penalties, null, 2));
+    } catch (error) {
+        
+    }
+}
+
+// Dodawanie kary za spam
+function addSpamPenalty(userId) {
+    const penalties = loadSpamPenalties();
+    const now = Date.now();
+    const oneHourAgo = now - (60 * 60 * 1000);
+    
+    if (!penalties[userId]) {
+        penalties[userId] = [];
+    }
+    
+    // Usuń stare kary (starsze niż godzina)
+    penalties[userId] = penalties[userId].filter(penalty => penalty.timestamp > oneHourAgo);
+    
+    // Dodaj nową karę
+    penalties[userId].push({
+        timestamp: now,
+        type: 'spam'
+    });
+    
+    saveSpamPenalties(penalties);
+    return penalties[userId].length;
+}
+
+// Sprawdzanie liczby kar za spam w ostatniej godzinie
+function getSpamPenaltiesInHour(userId) {
+    const penalties = loadSpamPenalties();
+    const now = Date.now();
+    const oneHourAgo = now - (60 * 60 * 1000);
+    
+    if (!penalties[userId]) {
+        return 0;
+    }
+    
+    const recentPenalties = penalties[userId].filter(penalty => penalty.timestamp > oneHourAgo);
+    return recentPenalties.length;
+}
+
 // Sprawdzanie spamu
 function checkSpam(userId, config) {
     const tracker = loadSpamTracker();
@@ -324,6 +384,96 @@ function hasProtectedRole(member) {
     );
 }
 
+// Wykonywanie akcji za spam
+async function executeSpamAction(message, action, reason, config, penaltyCount) {
+    const member = message.member;
+    if (!member) return;
+    
+    // Sprawdź czy użytkownik ma chronioną rolę
+    const isProtected = hasProtectedRole(member);
+    
+    try {
+        if (action === 'timeout') {
+            if (isProtected) {
+                const protectedEmbed = {
+                    color: 0xFFA500,
+                    title: '🛡️ Akcja pominięta',
+                    description: `${member.user} ma chronioną rolę - timeout za spam został pominięty. Wiadomości zostały usunięte.`,
+                    timestamp: new Date().toISOString()
+                };
+                await message.channel.send({ embeds: [protectedEmbed] });
+            } else {
+                // Określ długość timeout na podstawie liczby kar
+                const duration = penaltyCount >= 2 ? 300000 : (config.spamProtection.timeoutDuration || 60000); // 5 minut dla drugiej kary, 60s dla pierwszej
+                await member.timeout(duration, reason);
+                
+                const timeoutEmbed = {
+                    color: 0xFF8C00,
+                    title: '🔇 Timeout za spam',
+                    description: `${member.user} otrzymał timeout na ${Math.floor(duration/1000)} sekund za spam.\n**Kary w ciągu godziny:** ${penaltyCount}/2`,
+                    timestamp: new Date().toISOString()
+                };
+                await message.channel.send({ embeds: [timeoutEmbed] });
+                
+                // Wyślij prywatną wiadomość
+                try {
+                    const dmEmbed = {
+                        color: 0xFF8C00,
+                        title: '🔇 Timeout za spam',
+                        description: `Otrzymałeś timeout na ${Math.floor(duration/1000)} sekund na serwerze **${message.guild.name}** za spam.\n\n**Powód:** ${reason}\n**Kary w ciągu godziny:** ${penaltyCount}/2\n\n⚠️ **Uwaga:** Druga kara za spam w ciągu godziny skutkuje dłuższym timeout (5 minut)!`,
+                        timestamp: new Date().toISOString(),
+                        footer: { text: 'System Auto-Moderacji' }
+                    };
+                    await member.user.send({ embeds: [dmEmbed] });
+                } catch (error) {
+                    
+                }
+                
+                addModerationEntry(member.user.id, 'timeout', reason);
+                console.log(`🔇 KARA: Timeout dla ${member.user.tag} (ID: ${member.user.id}) - AutoMod - ${Math.floor(duration/1000)}s - ${reason}`);
+            }
+        } else if (action === 'kick') {
+            if (isProtected) {
+                const protectedEmbed = {
+                    color: 0xFFA500,
+                    title: '🛡️ Akcja pominięta',
+                    description: `${member.user} ma chronioną rolę - wyrzucenie za spam zostało pominięte. Wiadomości zostały usunięte.`,
+                    timestamp: new Date().toISOString()
+                };
+                await message.channel.send({ embeds: [protectedEmbed] });
+            } else {
+                // Wyślij prywatną wiadomość przed kickiem
+                try {
+                    const kickDmEmbed = {
+                        color: 0xFF4500,
+                        title: '👢 Zostałeś wyrzucony z serwera',
+                        description: `Zostałeś automatycznie wyrzucony z serwera **${message.guild.name}** za spam.\n\n**Powód:** ${reason}\n\nMożesz wrócić na serwer, ale pamiętaj o przestrzeganiu zasad!`,
+                        timestamp: new Date().toISOString(),
+                        footer: { text: 'System Auto-Moderacji' }
+                    };
+                    await member.user.send({ embeds: [kickDmEmbed] });
+                } catch (error) {
+                    
+                }
+                
+                const kickEmbed = {
+                    color: 0xFF4500,
+                    title: '👢 Automatyczne wyrzucenie za spam',
+                    description: `${member.user.tag} został automatycznie wyrzucony za spam (${penaltyCount} kara w ciągu godziny).`,
+                    timestamp: new Date().toISOString()
+                };
+                await message.channel.send({ embeds: [kickEmbed] });
+                
+                await member.kick(reason);
+                addModerationEntry(member.user.id, 'auto-kick', reason);
+                console.log(`👢 KARA: Kick dla ${member.user.tag} (ID: ${member.user.id}) - AutoMod - ${reason}`);
+            }
+        }
+    } catch (error) {
+        console.error(`Błąd wykonywania akcji za spam ${action}:`, error);
+    }
+}
+
 // Wykonywanie akcji moderacyjnej
 async function executeAction(message, action, reason, config) {
     const member = message.member;
@@ -336,7 +486,7 @@ async function executeAction(message, action, reason, config) {
         switch (action) {
             case 'delete':
                 await message.delete();
-                console.log(`🗑️ Usunięto wiadomość od ${member.user.tag}: ${reason}`);
+
                 break;
                 
             case 'warn':
@@ -357,14 +507,13 @@ async function executeAction(message, action, reason, config) {
                         }
                     };
                     await member.user.send({ embeds: [dmEmbed] });
-                    console.log(`📨 Wysłano prywatne ostrzeżenie do ${member.user.tag}`);
+
                 } catch (error) {
-                    console.log(`❌ Nie można wysłać prywatnej wiadomości do ${member.user.tag}`);
+
                 }
                 
                 // Sprawdź czy użytkownik przekroczył limit ostrzeżeń
                 if (warningsCount >= 5) {
-                    console.log(`🚨 ${member.user.tag} przekroczył limit ostrzeżeń (${warningsCount}/5) - automatyczny kick`);
                     
                     try {
                         // Wyślij informację o kicku
@@ -379,7 +528,7 @@ async function executeAction(message, action, reason, config) {
                         };
                         await member.user.send({ embeds: [kickDmEmbed] });
                     } catch (error) {
-                        console.log(`❌ Nie można wysłać wiadomości o kicku do ${member.user.tag}`);
+
                     }
                     
                     // Kick użytkownika
@@ -410,12 +559,13 @@ async function executeAction(message, action, reason, config) {
                             await logChannel.send({ embeds: [logEmbed] });
                         }
                     } catch (error) {
-                        console.error('Błąd wysyłania logu do kanału moderacji:', error);
+
                     }
                     
                     await member.kick(`Automatyczny kick - przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (${warningsCount}/5)`);
                     addModerationEntry(member.user.id, 'auto-kick', `Przekroczenie limitu ostrzeżeń za przekleństwa w ciągu 24h (${warningsCount}/5)`);
-                    console.log(`👢 Automatycznie wyrzucono ${member.user.tag} za przekroczenie limitu ostrzeżeń`);
+                    console.log(`🚨 KARA: Kick dla ${member.user.tag} (ID: ${member.user.id}) - AutoMod - Przekroczenie limitu ostrzeżeń (${warningsCount}/5)`);
+
                 } else {
                     // Zwykłe ostrzeżenie publiczne
                     const warnEmbed = {
@@ -446,11 +596,12 @@ async function executeAction(message, action, reason, config) {
                             await logChannel.send({ embeds: [logEmbed] });
                         }
                     } catch (error) {
-                        console.error('Błąd wysyłania logu do kanału moderacji:', error);
+
                     }
                     
                     addModerationEntry(member.user.id, 'warn', reason);
-                    console.log(`⚠️ Ostrzeżenie dla ${member.user.tag}: ${reason} (${warningsCount}/5)`);
+                    console.log(`⚠️ KARA: Warn dla ${member.user.tag} (ID: ${member.user.id}) - AutoMod - ${reason} (${warningsCount}/5)`);
+
                 }
                 break;
                 
@@ -458,7 +609,6 @@ async function executeAction(message, action, reason, config) {
                 await message.delete();
                 
                 if (isProtected) {
-                    console.log(`🛡️ Pominięto timeout dla chronionego użytkownika ${member.user.tag}`);
                     const protectedEmbed = {
                         color: 0xFFA500,
                         title: '🛡️ Akcja pominięta',
@@ -477,7 +627,7 @@ async function executeAction(message, action, reason, config) {
                     };
                     await message.channel.send({ embeds: [timeoutEmbed] });
                     addModerationEntry(member.user.id, 'timeout', reason);
-                    console.log(`🔇 Timeout dla ${member.user.tag}: ${reason}`);
+                    console.log(`🔇 KARA: Timeout dla ${member.user.tag} (ID: ${member.user.id}) - AutoMod - ${Math.floor(duration/60000)} minut - ${reason}`);
                 }
                 break;
                 
@@ -485,7 +635,6 @@ async function executeAction(message, action, reason, config) {
                 await message.delete();
                 
                 if (isProtected) {
-                    console.log(`🛡️ Pominięto kick dla chronionego użytkownika ${member.user.tag}`);
                     const protectedEmbed = {
                         color: 0xFFA500,
                         title: '🛡️ Akcja pominięta',
@@ -503,7 +652,7 @@ async function executeAction(message, action, reason, config) {
                     await message.channel.send({ embeds: [kickEmbed] });
                     await member.kick(reason);
                     addModerationEntry(member.user.id, 'kick', reason);
-                    console.log(`👢 Wyrzucono ${member.user.tag}: ${reason}`);
+                    console.log(`👢 KARA: Kick dla ${member.user.tag} (ID: ${member.user.id}) - AutoMod - ${reason}`);
                 }
                 break;
                 
@@ -511,7 +660,6 @@ async function executeAction(message, action, reason, config) {
                 await message.delete();
                 
                 if (isProtected) {
-                    console.log(`🛡️ Pominięto ban dla chronionego użytkownika ${member.user.tag}`);
                     const protectedEmbed = {
                         color: 0xFFA500,
                         title: '🛡️ Akcja pominięta',
@@ -529,7 +677,7 @@ async function executeAction(message, action, reason, config) {
                     await message.channel.send({ embeds: [banEmbed] });
                     await member.ban({ reason });
                     addModerationEntry(member.user.id, 'ban', reason);
-                    console.log(`🔨 Zbanowano ${member.user.tag}: ${reason}`);
+                    console.log(`🔨 KARA: Ban dla ${member.user.tag} (ID: ${member.user.id}) - AutoMod - ${reason}`);
                 }
                 break;
                 
@@ -550,32 +698,21 @@ async function processMessage(client, message) {
     // Czyść stare ostrzeżenia raz dziennie (losowo przy każdej wiadomości z 0.1% szansą)
     if (Math.random() < 0.001) {
         cleanOldWarnings();
-        console.log('🧹 Wyczyszczono stare ostrzeżenia za przekleństwa');
     }
     
     const config = loadConfig();
-    
-    // Debug: logujemy informacje o użytkowniku
-    console.log(`🔍 Auto-mod sprawdza wiadomość od: ${message.author.username}`);
-    console.log(`📝 Treść: "${message.content}"`);
-    console.log(`🎭 Role użytkownika: ${message.member?.roles.cache.map(r => r.name).join(', ')}`);
     
     // Sprawdzanie zwolnienia z auto-moderacji
     const isProfanityExempt = isExempt(message.member, config, 'profanityFilter');
     const isSpamExempt = isExempt(message.member, config, 'spamProtection');
     
-    console.log(`🛡️ Użytkownik zwolniony z filtrowania: ${isProfanityExempt}`);
-    console.log(`🛡️ Użytkownik zwolniony z ochrony przed spamem: ${isSpamExempt}`);
-    
     if (isProfanityExempt && isSpamExempt) {
-        console.log(`⏭️ Pomijanie auto-moderacji dla ${message.author.username}`);
         return;
     }
     
     // Sprawdzanie wulgaryzmów
     if (config.profanityFilter.enabled && !isProfanityExempt) {
         if (containsProfanity(message.content)) {
-            console.log(`🚫 Wykryto wulgaryzm od ${message.author.username}`);
             await executeAction(
                 message, 
                 config.profanityFilter.action, 
@@ -589,13 +726,45 @@ async function processMessage(client, message) {
     // Sprawdzanie spamu
     if (config.spamProtection.enabled && !isSpamExempt) {
         if (checkSpam(message.author.id, config)) {
-            console.log(`🚫 Wykryto spam od ${message.author.username}`);
-            await executeAction(
-                message, 
-                config.spamProtection.action, 
-                'Spam - zbyt wiele wiadomości w krótkim czasie', 
-                config
-            );
+            // Sprawdź liczbę kar za spam w ostatniej godzinie
+            const penaltiesInHour = getSpamPenaltiesInHour(message.author.id);
+            
+            // Usuń wiadomości użytkownika z ostatnich 10 sekund (od momentu spamowania)
+            try {
+                const messages = await message.channel.messages.fetch({ limit: 50 });
+                const userMessages = messages.filter(msg => 
+                    msg.author.id === message.author.id && 
+                    Date.now() - msg.createdTimestamp < config.spamProtection.timeWindow
+                );
+                
+                if (userMessages.size > 0) {
+                    await message.channel.bulkDelete(userMessages, true);
+                }
+            } catch (error) {
+                // Jeśli bulk delete nie działa, usuń pojedynczo
+                try {
+                    await message.delete();
+                } catch (deleteError) {
+                    
+                }
+            }
+            
+            // Dodaj karę za spam
+            const totalPenalties = addSpamPenalty(message.author.id);
+            
+            // Określ akcję na podstawie liczby kar
+            let action, reason;
+            if (totalPenalties >= 2) {
+                // Druga kara w godzinie = timeout 5 minut
+                action = 'timeout';
+                reason = `Spam - druga kara w ciągu godziny (${totalPenalties}/2)`;
+            } else {
+                // Pierwsza kara = timeout 60s
+                action = 'timeout';
+                reason = `Spam - zbyt wiele wiadomości w krótkim czasie (${totalPenalties}/2)`;
+            }
+            
+            await executeSpamAction(message, action, reason, config, totalPenalties);
             return;
         }
     }

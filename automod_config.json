@@ -1,18 +1,20 @@
 {
   "profanityFilter": {
-    "enabled": true,
+    "enabled": false,
     "action": "warn",
-    "timeoutDuration": 300000,
-    "exemptRoles": ["Admin"],
+    "timeoutDuration": 60000,
+    "exemptRoles": [
+      "Admin"
+    ],
     "logViolations": true
   },
   "spamProtection": {
     "enabled": true,
     "maxMessages": 5,
-    "timeWindow": 10000,
+    "timeWindow": 5000,
     "duplicateThreshold": 3,
     "action": "timeout",
-    "timeoutDuration": 600000,
+    "timeoutDuration": 60000,
     "logViolations": true
   },
   "exemptRoles": [],

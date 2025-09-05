@@ -1,0 +1,138 @@
+{
+  "poll_1757076558764_zc1shockh": {
+    "id": "poll_1757076558764_zc1shockh",
+    "question": "Czy chcecie bota muzycznego?",
+    "options": [
+      "tak",
+      "nie"
+    ],
+    "votes": {
+      "1266541457477734400": 0
+    },
+    "createdBy": "1266541457477734400",
+    "createdAt": 1757076559536,
+    "duration": 300000,
+    "messageId": "1413506280269549659",
+    "channelId": "1412925083080458381",
+    "guildId": "1412873403433746434",
+    "active": true
+  },
+  "poll_1757076780611_iehbitjl5": {
+    "id": "poll_1757076780611_iehbitjl5",
+    "question": "Chcecie bota muzycznego?",
+    "options": [
+      "tak",
+      "nie"
+    ],
+    "votes": {
+      "1266541457477734400": 0,
+      "275707818324000769": 1
+    },
+    "createdBy": "1266541457477734400",
+    "createdAt": 1757076781354,
+    "duration": 300000,
+    "messageId": "1413507210490679400",
+    "channelId": "1412925083080458381",
+    "guildId": "1412873403433746434",
+    "active": true
+  },
+  "poll_1757077082254_k8vo29m0q": {
+    "id": "poll_1757077082254_k8vo29m0q",
+    "question": "Bot muzyczny?",
+    "options": [
+      "tak",
+      "nie"
+    ],
+    "votes": {
+      "1266541457477734400": 0
+    },
+    "createdBy": "1266541457477734400",
+    "createdAt": 1757077083096,
+    "duration": 300000,
+    "messageId": "1413508476142878794",
+    "channelId": "1412925083080458381",
+    "guildId": "1412873403433746434",
+    "active": false,
+    "closedAt": 1757077383089,
+    "closedBy": "system"
+  },
+  "poll_1757083690156_mnzwrcv3q": {
+    "id": "poll_1757083690156_mnzwrcv3q",
+    "question": "czy?",
+    "options": [
+      "tak",
+      "nie"
+    ],
+    "votes": {
+      "1266541457477734400": 0,
+      "377156474968866818": 1
+    },
+    "createdBy": "1266541457477734400",
+    "createdAt": 1757083690873,
+    "duration": 3600000,
+    "messageId": "1413536192158240929",
+    "channelId": "1412923730958487703",
+    "guildId": "1412873403433746434",
+    "active": false,
+    "closedAt": 1757083724862,
+    "closedBy": "1266541457477734400"
+  },
+  "poll_1757083975152_a10gtymr8": {
+    "id": "poll_1757083975152_a10gtymr8",
+    "question": "czy?",
+    "options": [
+      "tak",
+      "nie"
+    ],
+    "votes": {
+      "1266541457477734400": 0
+    },
+    "createdBy": "1266541457477734400",
+    "createdAt": 1757083975938,
+    "duration": 3600000,
+    "messageId": "1413537387572891719",
+    "channelId": "1412925083080458381",
+    "guildId": "1412873403433746434",
+    "active": true
+  },
+  "poll_1757084622364_hzk1n6tcm": {
+    "id": "poll_1757084622364_hzk1n6tcm",
+    "question": "xd",
+    "options": [
+      "1",
+      "2"
+    ],
+    "votes": {
+      "1266541457477734400": 0
+    },
+    "createdBy": "1266541457477734400",
+    "createdAt": 1757084623041,
+    "duration": 300000,
+    "messageId": "1413540101727719517",
+    "channelId": "1412925083080458381",
+    "guildId": "1412873403433746434",
+    "active": false,
+    "closedAt": 1757084657217,
+    "closedBy": "1266541457477734400"
+  },
+  "poll_1757084918980_841mowhph": {
+    "id": "poll_1757084918980_841mowhph",
+    "question": "xdx",
+    "options": [
+      "12",
+      "23"
+    ],
+    "votes": {
+      "1266541457477734400": 1
+    },
+    "createdBy": "1266541457477734400",
+    "createdAt": 1757084919704,
+    "duration": 300000,
+    "messageId": "1413541346307866624",
+    "channelId": "1412925083080458381",
+    "guildId": "1412873403433746434",
+    "active": false,
+    "closedAt": 1757084938772,
+    "closedBy": "1266541457477734400"
+  }
+}

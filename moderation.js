@@ -1,6 +1,26 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const { addModerationEntry, loadModerationHistory } = require('./auto-moderation');
 
+// Funkcja bezpiecznej odpowiedzi na interakcje
+async function safeReply(interaction, options) {
+    try {
+        if (interaction.replied || interaction.deferred) {
+            return await interaction.followUp(options);
+        } else {
+            return await interaction.reply(options);
+        }
+    } catch (error) {
+        if (error.code === 10062) {
+            console.log('⚠️ Interakcja wygasła (Unknown interaction)');
+        } else if (error.code === 40060) {
+            // Pomijamy log dla już obsłużonych interakcji
+        } else {
+            console.error('❌ Błąd podczas odpowiedzi na interakcję:', error);
+        }
+        return null;
+    }
+}
+
 // ID kanału do logowania moderacji
 const LOG_CHANNEL_ID = '1412925469338107945';
 
@@ -14,6 +34,43 @@ async function sendLogToChannel(client, embed) {
     } catch (error) {
         console.error('Błąd podczas wysyłania loga do kanału:', error);
     }
+}
+
+// Funkcja sprawdzająca uprawnienia moderacyjne
+function hasModeratorPermissions(member) {
+    // Sprawdź uprawnienia Discord
+    if (member.permissions.has(PermissionFlagsBits.ModerateMembers) || 
+        member.permissions.has(PermissionFlagsBits.KickMembers) ||
+        member.permissions.has(PermissionFlagsBits.BanMembers)) {
+        return true;
+    }
+    
+    // Sprawdź rolę Moderator
+    return member.roles.cache.some(role => role.name === 'Moderator');
+}
+
+// Funkcja logowania operacji użytkowników
+async function logUserOperation(interaction, operation, target = null, reason = null) {
+    const logEmbed = new EmbedBuilder()
+        .setColor(0x00AE86)
+        .setTitle('📋 Operacja użytkownika')
+        .addFields(
+            { name: 'Użytkownik', value: `${interaction.user.tag} (${interaction.user.id})`, inline: true },
+            { name: 'Operacja', value: operation, inline: true },
+            { name: 'Kanał', value: `${interaction.channel}`, inline: true }
+        )
+        .setTimestamp();
+    
+    if (target) {
+        logEmbed.addFields({ name: 'Cel', value: `${target.tag} (${target.id})`, inline: true });
+    }
+    
+    if (reason) {
+        logEmbed.addFields({ name: 'Powód', value: reason, inline: false });
+    }
+    
+    await sendLogToChannel(interaction.client, logEmbed);
+    console.log(`📋 OPERACJA: ${interaction.user.tag} wykonał ${operation}${target ? ` na ${target.tag}` : ''}${reason ? ` - ${reason}` : ''}`);
 }
 
 // Komenda /warn - ostrzeżenie użytkownika
@@ -40,21 +97,30 @@ const warnCommand = {
         let replied = false;
         
         try {
+            // Sprawdzenie uprawnień moderacyjnych
+            if (!hasModeratorPermissions(interaction.member)) {
+                await safeReply(interaction, {
+                content: '❌ Nie masz uprawnień do ostrzegania użytkowników. Wymagana rola Moderator lub odpowiednie uprawnienia.',
+                flags: 64
+            });
+                return;
+            }
+            
             // Sprawdzenie czy użytkownik jest na serwerze
             const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
             if (!targetMember) {
-                await interaction.reply({
+                await safeReply(interaction, {
                     content: '❌ Nie znaleziono użytkownika na tym serwerze.',
-                    ephemeral: true
+                    flags: 64
                 });
                 return;
             }
             
             // Sprawdzenie hierarchii ról
             if (targetMember.roles.highest.position >= interaction.member.roles.highest.position) {
-                await interaction.reply({
+                await safeReply(interaction, {
                     content: '❌ Nie możesz ostrzec użytkownika z wyższą lub równą rolą.',
-                    ephemeral: true
+                    flags: 64
                 });
                 return;
             }
@@ -75,8 +141,11 @@ const warnCommand = {
                 .setTimestamp();
             
             // Wysłanie ostrzeżenia na kanał
-            await interaction.reply({ embeds: [warnEmbed] });
+            await safeReply(interaction, { embeds: [warnEmbed] });
             replied = true;
+            
+            // Logowanie operacji użytkownika
+            await logUserOperation(interaction, 'WARN', targetUser, reason);
             
             // Wysłanie loga do kanału moderacji
             await sendLogToChannel(interaction.client, warnEmbed);
@@ -104,9 +173,9 @@ const warnCommand = {
             console.error('Błąd podczas ostrzegania:', error);
             if (!replied && !interaction.replied) {
                 try {
-                    await interaction.reply({
+                    await safeReply(interaction, {
                         content: '❌ Wystąpił błąd podczas ostrzegania użytkownika.',
-                        ephemeral: true
+                        flags: 64
                     });
                 } catch (replyError) {
                     console.error('Nie udało się wysłać odpowiedzi o błędzie:', replyError);
@@ -140,30 +209,39 @@ const kickCommand = {
         let replied = false;
         
         try {
+            // Sprawdzenie uprawnień moderacyjnych
+            if (!hasModeratorPermissions(interaction.member)) {
+                await safeReply(interaction, {
+                    content: '❌ Nie masz uprawnień do wyrzucania użytkowników. Wymagana rola Moderator lub odpowiednie uprawnienia.',
+                    flags: 64
+                });
+                return;
+            }
+            
             // Sprawdzenie czy użytkownik jest na serwerze
             const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
             if (!targetMember) {
-                await interaction.reply({
+                await safeReply(interaction, {
                     content: '❌ Nie znaleziono użytkownika na tym serwerze.',
-                    ephemeral: true
+                    flags: 64
                 });
                 return;
             }
             
             // Sprawdzenie czy użytkownik może być wyrzucony
             if (!targetMember.kickable) {
-                await interaction.reply({
+                await safeReply(interaction, {
                     content: '❌ Nie mogę wyrzucić tego użytkownika (prawdopodobnie ma wyższą rolę niż bot).',
-                    ephemeral: true
+                    flags: 64
                 });
                 return;
             }
             
             // Sprawdzenie hierarchii ról
             if (targetMember.roles.highest.position >= interaction.member.roles.highest.position) {
-                await interaction.reply({
+                await safeReply(interaction, {
                     content: '❌ Nie możesz wyrzucić użytkownika z wyższą lub równą rolą.',
-                    ephemeral: true
+                    flags: 64
                 });
                 return;
             }
@@ -203,8 +281,11 @@ const kickCommand = {
                 )
                 .setTimestamp();
             
-            await interaction.reply({ embeds: [kickEmbed] });
+            await safeReply(interaction, { embeds: [kickEmbed] });
             replied = true;
+            
+            // Logowanie operacji użytkownika
+            await logUserOperation(interaction, 'KICK', targetUser, reason);
             
             // Wysłanie loga do kanału moderacji
             await sendLogToChannel(interaction.client, kickEmbed);
@@ -215,9 +296,9 @@ const kickCommand = {
             console.error('Błąd podczas wyrzucania:', error);
             if (!replied && !interaction.replied) {
                 try {
-                    await interaction.reply({
+                    await safeReply(interaction, {
                         content: '❌ Wystąpił błąd podczas wyrzucania użytkownika.',
-                        ephemeral: true
+                        flags: 64
                     });
                 } catch (replyError) {
                     console.error('Nie udało się wysłać odpowiedzi o błędzie:', replyError);
@@ -257,24 +338,33 @@ const banCommand = {
         let replied = false;
         
         try {
+            // Sprawdzenie uprawnień moderacyjnych
+            if (!hasModeratorPermissions(interaction.member)) {
+                await safeReply(interaction, {
+                    content: '❌ Nie masz uprawnień do banowania użytkowników. Wymagana rola Moderator lub odpowiednie uprawnienia.',
+                    flags: 64
+                });
+                return;
+            }
+            
             // Sprawdzenie czy użytkownik jest na serwerze
             const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
             
             if (targetMember) {
                 // Sprawdzenie czy użytkownik może być zbanowany
                 if (!targetMember.bannable) {
-                    await interaction.reply({
+                    await safeReply(interaction, {
                         content: '❌ Nie mogę zbanować tego użytkownika (prawdopodobnie ma wyższą rolę niż bot).',
-                        ephemeral: true
+                        flags: 64
                     });
                     return;
                 }
                 
                 // Sprawdzenie hierarchii ról
                 if (targetMember.roles.highest.position >= interaction.member.roles.highest.position) {
-                    await interaction.reply({
+                    await safeReply(interaction, {
                         content: '❌ Nie możesz zbanować użytkownika z wyższą lub równą rolą.',
-                        ephemeral: true
+                        flags: 64
                     });
                     return;
                 }
@@ -319,8 +409,11 @@ const banCommand = {
                 )
                 .setTimestamp();
             
-            await interaction.reply({ embeds: [banEmbed] });
+            await safeReply(interaction, { embeds: [banEmbed] });
             replied = true;
+            
+            // Logowanie operacji użytkownika
+            await logUserOperation(interaction, 'BAN', targetUser, reason);
             
             // Wysłanie loga do kanału moderacji
             await sendLogToChannel(interaction.client, banEmbed);
@@ -331,9 +424,9 @@ const banCommand = {
             console.error('Błąd podczas banowania:', error);
             if (!replied && !interaction.replied) {
                 try {
-                    await interaction.reply({
+                    await safeReply(interaction, {
                         content: '❌ Wystąpił błąd podczas banowania użytkownika.',
-                        ephemeral: true
+                        flags: 64
                     });
                 } catch (replyError) {
                     console.error('Nie udało się wysłać odpowiedzi o błędzie:', replyError);
@@ -364,6 +457,14 @@ const modlogsCommand = {
         const limit = interaction.options.getInteger('limit') || 10;
         
         try {
+            // Sprawdzenie uprawnień moderacyjnych
+            if (!hasModeratorPermissions(interaction.member)) {
+                await safeReply(interaction, {
+                    content: '❌ Nie masz uprawnień do przeglądania logów moderacji. Wymagana rola Moderator lub odpowiednie uprawnienia.',
+                    flags: 64
+                });
+                return;
+            }
             const history = loadModerationHistory();
             let allEntries = [];
             
@@ -402,9 +503,9 @@ const modlogsCommand = {
                     ? `Brak wpisów moderacyjnych dla użytkownika ${targetUser.tag}.`
                     : 'Brak wpisów moderacyjnych.';
                 
-                return await interaction.reply({
+                return await safeReply(interaction, {
                     content: noLogsMessage,
-                    ephemeral: true
+                    flags: 64
                 });
             }
             
@@ -432,13 +533,13 @@ const modlogsCommand = {
                 });
             });
             
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            await safeReply(interaction, { embeds: [embed], flags: 64 });
             
         } catch (error) {
             console.error('Błąd podczas pobierania historii moderacji:', error);
-            await interaction.reply({
+            await safeReply(interaction, {
                 content: '❌ Wystąpił błąd podczas pobierania historii moderacji.',
-                ephemeral: true
+                flags: 64
             });
         }
     }

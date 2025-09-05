@@ -2,6 +2,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, Collection, PermissionFlagsBits, ChannelType, REST, Routes } = require('discord.js');
 const { commands, getChannelPrefix } = require('./commands');
 const { processMessage } = require('./auto-moderation');
+const { handlePollVote } = require('./polls');
 const Parser = require('rss-parser');
 const cron = require('node-cron');
 
@@ -32,7 +33,8 @@ client.channelOwners = new Collection();
 client.reactionRoles = new Collection();
 
 // Konfiguracja Welcome/Leave System
-const WELCOME_CHANNEL_ID = '1412923730958487703'; // Kanał ogólny
+const WELCOME_CHANNEL_ID = '1412924338163945532'; // Kanał 👋┃przedstaw-się
+const LEAVE_CHANNEL_ID = '1412923730958487703'; // Kanał 💬┃chat
 const LOG_CHANNEL_ID = '1412925469338107945'; // Kanał moderacji
 const VOICE_CATEGORY_ID = '1412920201724563629'; // Kategoria głosowa
 
@@ -58,7 +60,7 @@ function loadSentNews() {
             const data = fs.readFileSync(NEWS_STORAGE_FILE, 'utf8');
             const sentNews = JSON.parse(data);
             client.lastNewsItems = new Set(sentNews);
-            console.log(`📂 Załadowano ${sentNews.length} już wysłanych newsów`);
+
         }
     } catch (error) {
         console.error('❌ Błąd podczas ładowania wysłanych newsów:', error);
@@ -83,25 +85,29 @@ function generateNewsHash(item) {
 }
 
 // Event: Bot gotowy
-client.once('ready', async () => {
-    console.log(`✅ Bot zalogowany jako ${client.user.tag}`);
-    console.log(`🔧 Aktywny na ${client.guilds.cache.size} serwerach`);
+client.once('clientReady', async () => {
+
     
     // Ustawienie statusu bota
     client.user.setActivity('Tworzenie kanałów głosowych', { type: 'WATCHING' });
     
     // Czyszczenie pustych kanałów głosowych przy starcie
-    console.log('🧹 Czyszczenie pustych kanałów głosowych...');
+
     await cleanupEmptyVoiceChannels();
     
     // Ładowanie już wysłanych newsów
     loadSentNews();
     
+    // Automatyczne wykonanie komendy /auth przy starcie
+    await setupAutoAuth();
+    
+    // Okresowe czyszczenie pustych kanałów wyłączone
+    
     // Rejestracja komend slash
     await registerSlashCommands();
     
     // Uruchomienie systemu newsów Battlefield 6
-    console.log('🎮 Uruchamianie systemu newsów Battlefield 6...');
+
     await checkBF6News(); // Pierwsze sprawdzenie
     startBF6NewsScheduler(); // Uruchomienie harmonogramu
 });
@@ -112,7 +118,7 @@ async function cleanupEmptyVoiceChannels() {
         for (const guild of client.guilds.cache.values()) {
             const category = guild.channels.cache.get(VOICE_CATEGORY_ID);
             if (!category) {
-                console.log(`⚠️ Nie znaleziono kategorii głosowej o ID: ${VOICE_CATEGORY_ID}`);
+
                 continue;
             }
             
@@ -135,22 +141,71 @@ async function cleanupEmptyVoiceChannels() {
                     }
                     
                     deletedCount++;
-                    console.log(`🗑️ Usunięto pusty kanał: ${channel.name}`);
+
                 } catch (error) {
-                    console.error(`❌ Błąd podczas usuwania kanału ${channel.name}:`, error);
+
                 }
             }
             
-            if (deletedCount > 0) {
-                console.log(`✅ Wyczyszczono ${deletedCount} pustych kanałów głosowych`);
-            } else {
-                console.log(`✅ Brak pustych kanałów do wyczyszczenia`);
+
+        }
+    } catch (error) {
+    }
+}
+
+// Funkcja automatycznego ustawiania /auth przy starcie
+async function setupAutoAuth() {
+    try {
+        console.log('🔧 Konfigurowanie automatycznego /auth...');
+        
+        for (const guild of client.guilds.cache.values()) {
+            // Znajdź kanał regulamin
+            const channel = guild.channels.cache.find(ch => 
+                ch.name === '📜┃regulamin' && ch.type === 0
+            );
+            
+            if (!channel) {
+                console.log(`⚠️ Nie znaleziono kanału regulamin na serwerze ${guild.name}`);
+                continue;
+            }
+
+            // Znajdź rolę Zweryfikowany
+            const role = guild.roles.cache.find(r => r.name === 'Zweryfikowany');
+            if (!role) {
+                console.log(`⚠️ Nie znaleziono roli Zweryfikowany na serwerze ${guild.name}`);
+                continue;
+            }
+
+            const messageId = '1412930341571924089';
+            const emoji = '✅';
+
+            // Sprawdź czy wiadomość istnieje
+            try {
+                const message = await channel.messages.fetch(messageId);
+                
+                // Dodaj reakcję
+                await message.react(emoji);
+                
+                // Zapisz konfigurację reaction role
+                client.reactionRoles.set(messageId, {
+                    channelId: channel.id,
+                    emoji: emoji,
+                    roleId: role.id,
+                    roleName: role.name
+                });
+                
+                console.log(`✅ Automatycznie skonfigurowano /auth: ${emoji} -> ${role.name} w ${channel.name}`);
+                
+            } catch (error) {
+                console.log(`⚠️ Nie znaleziono wiadomości ${messageId} w kanale ${channel.name}`);
             }
         }
     } catch (error) {
-        console.error('❌ Błąd podczas czyszczenia pustych kanałów:', error);
+        console.error('❌ Błąd podczas automatycznego ustawiania /auth:', error);
     }
 }
+
+// Funkcja okresowego czyszczenia pustych kanałów głosowych (usunięta - bez logów)
 
 // Event: Zmiana stanu kanału głosowego
 client.on('voiceStateUpdate', async (oldState, newState) => {
@@ -161,163 +216,140 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     }
 });
 
-// Funkcja obsługująca zmiany stanu kanałów głosowych
+// PROSTA LOGIKA TWORZENIA KANAŁÓW - BEZ SKOMPLIKOWANYCH MECHANIZMÓW
 async function handleVoiceStateUpdate(oldState, newState) {
     const triggerChannelId = process.env.TRIGGER_CHANNEL_ID;
     const voiceCategoryId = process.env.VOICE_CATEGORY_ID;
     
-    // Użytkownik dołączył do kanału trigger
-    if (newState.channelId === triggerChannelId && oldState.channelId !== triggerChannelId) {
-        await createUserVoiceChannel(newState.member, newState.guild, voiceCategoryId);
-    }
-    
-    // Użytkownik opuścił kanał - sprawdź czy kanał jest pusty i czy należy go usunąć
-    if (oldState.channel && oldState.channel.id !== triggerChannelId) {
-        await checkAndDeleteEmptyChannel(oldState.channel);
-    }
-}
-
-// Funkcja tworząca nowy kanał głosowy dla użytkownika
-async function createUserVoiceChannel(member, guild, categoryId) {
-    try {
-        const prefix = process.env.CHANNEL_PREFIX || '[BF6]';
-        const channelName = `${prefix} ${member.displayName}`;
+    // Użytkownik wszedł na kanał trigger - utwórz mu kanał
+    if (newState.channelId === triggerChannelId) {
+        console.log(`🎯 Użytkownik ${newState.member.displayName} wszedł na kanał trigger`);
         
         // Sprawdź czy użytkownik już ma swój kanał
-        const existingChannel = client.createdChannels.get(member.id);
-        if (existingChannel && guild.channels.cache.has(existingChannel)) {
-            // Przenieś użytkownika do istniejącego kanału
-            await member.voice.setChannel(existingChannel);
-            return;
+        const prefix = '[BF6]';
+        const channelName = `${prefix} ${newState.member.displayName}`;
+        
+        // Znajdź istniejący kanał użytkownika
+        const existingChannel = newState.guild.channels.cache.find(ch => 
+            ch.name === channelName && 
+            ch.type === ChannelType.GuildVoice &&
+            ch.parentId === voiceCategoryId
+        );
+        
+        if (existingChannel) {
+            // Przenieś do istniejącego kanału
+            console.log(`🔄 Przenoszę ${newState.member.displayName} do istniejącego kanału: ${channelName}`);
+            await newState.member.voice.setChannel(existingChannel.id);
+            client.createdChannels.set(newState.member.id, existingChannel.id);
+            client.channelOwners.set(existingChannel.id, newState.member.id);
+        } 
+    }
+    
+    // Użytkownik opuścił kanał - usuń pusty kanał
+    if (oldState.channel && oldState.channel.id !== triggerChannelId && client.channelOwners.has(oldState.channel.id)) {
+        // Sprawdź czy kanał jest pusty
+        if (oldState.channel.members.size === 0) {
+            console.log(`🗑️ Usuwam pusty kanał: ${oldState.channel.name}`);
+            client.createdChannels.delete(client.channelOwners.get(oldState.channel.id));
+            client.channelOwners.delete(oldState.channel.id);
+            await oldState.channel.delete();
         }
-        
-        // Znajdź wymagane role
-        const zweryfikowanyRole = guild.roles.cache.find(role => role.name === 'Zweryfikowany');
-        const moderatorRole = guild.roles.cache.find(role => role.name === 'Moderator');
-        const adminRole = guild.roles.cache.find(role => role.name === 'Admin');
-        const bf6Role = guild.roles.cache.find(role => role.name === 'Battlefield 6 Polska');
-        
-        // Przygotuj uprawnienia dla kanału
-        const permissionOverwrites = [
-            {
-                id: guild.id, // @everyone - brak dostępu
-                deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
-            },
-            {
-                id: member.id, // Właściciel kanału
-                allow: [
-                    PermissionFlagsBits.ViewChannel,
-                    PermissionFlagsBits.Connect,
-                    PermissionFlagsBits.ManageChannels, // Pozwala na zmianę nazwy i limitu
-                    PermissionFlagsBits.MoveMembers
-                ],
-            }
-        ];
-        
-        // Dodaj uprawnienia dla każdej znalezionej roli
-        if (zweryfikowanyRole) {
-            permissionOverwrites.push({
-                id: zweryfikowanyRole.id,
-                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
-            });
-        }
-        
-        if (moderatorRole) {
-            permissionOverwrites.push({
-                id: moderatorRole.id,
-                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
-            });
-        }
-        
-        if (adminRole) {
-            permissionOverwrites.push({
-                id: adminRole.id,
-                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
-            });
-        }
-        
-        if (bf6Role) {
-            permissionOverwrites.push({
-                id: bf6Role.id,
-                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
-            });
-        }
-        
-        // Utwórz nowy kanał głosowy
-        const voiceChannel = await guild.channels.create({
-            name: channelName,
-            type: ChannelType.GuildVoice,
-            parent: categoryId || null,
-            userLimit: 5, // Domyślny limit 5 użytkowników
-            permissionOverwrites: permissionOverwrites
-        });
-        
-        // Zapisz informacje o kanale
-        client.createdChannels.set(member.id, voiceChannel.id);
-        client.channelOwners.set(voiceChannel.id, member.id);
-        
-        // Przenieś użytkownika do nowego kanału
-        await member.voice.setChannel(voiceChannel.id);
-        
-        console.log(`✅ Utworzono kanał głosowy: ${channelName} dla ${member.displayName}`);
-        
-    } catch (error) {
-        console.error('❌ Błąd podczas tworzenia kanału głosowego:', error);
     }
 }
 
-// Funkcja sprawdzająca i usuwająca pusty kanał
-async function checkAndDeleteEmptyChannel(channel) {
+// Funkcja tworzenia prostego kanału głosowego
+async function createSimpleVoiceChannel(member, guild, categoryId, channelName) {
     try {
-        // Sprawdź czy kanał jest utworzony przez bota
-        const ownerId = client.channelOwners.get(channel.id);
-        if (!ownerId) return;
-        
-        // Sprawdź czy kanał jest pusty
-        if (channel.members.size === 0) {
-            // Usuń kanał po 5 sekundach (daje czas na powrót)
-            setTimeout(async () => {
-                try {
-                    const updatedChannel = channel.guild.channels.cache.get(channel.id);
-                    if (updatedChannel && updatedChannel.members.size === 0) {
-                        await updatedChannel.delete('Kanał pusty - automatyczne usunięcie');
-                        
-                        // Usuń z pamięci bota
-                        client.createdChannels.delete(ownerId);
-                        client.channelOwners.delete(channel.id);
-                        
-                        console.log(`🗑️ Usunięto pusty kanał: ${channel.name}`);
-                    }
-                } catch (error) {
-                    console.error('❌ Błąd podczas usuwania kanału:', error);
+        const channel = await guild.channels.create({
+            name: channelName,
+            type: ChannelType.GuildVoice,
+            parent: categoryId,
+            userLimit: 5, // Domyślny limit 5 osób
+            permissionOverwrites: [
+                {
+                    id: member.id,
+                    allow: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers]
                 }
-            }, 5000);
-        }
+            ]
+        });
+        
+        // Zapisz w mapach bota
+        client.createdChannels.set(member.id, channel.id);
+        client.channelOwners.set(channel.id, member.id);
+        
+        // Przenieś użytkownika do nowego kanału
+        await member.voice.setChannel(channel.id);
+        
+        console.log(`✅ Utworzono kanał ${channelName} dla ${member.displayName}`);
+        
     } catch (error) {
-        console.error('❌ Błąd podczas sprawdzania pustego kanału:', error);
+        console.error('❌ Błąd podczas tworzenia kanału:', error);
     }
 }
+
 
 // Event: Obsługa komend slash
 client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
-    
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
-    
-    try {
-        await command.execute(interaction, client);
-    } catch (error) {
-        console.error('❌ Błąd podczas wykonywania komendy:', error);
-        const reply = {
-            content: '❌ Wystąpił błąd podczas wykonywania komendy.',
-            ephemeral: true
-        };
+    // Obsługa komend slash
+    if (interaction.isChatInputCommand()) {
+        const command = client.commands.get(interaction.commandName);
+        if (!command) return;
         
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp(reply);
-        } else {
-            await interaction.reply(reply);
+        try {
+            await command.execute(interaction, client);
+        } catch (error) {
+            console.error('❌ Błąd podczas wykonywania komendy:', error);
+            const reply = {
+                content: '❌ Wystąpił błąd podczas wykonywania komendy.',
+                flags: 64 // MessageFlags.Ephemeral
+            };
+            
+            try {
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp(reply);
+                } else {
+                    await interaction.reply(reply);
+                }
+            } catch (replyError) {
+                console.error('❌ Nie można odpowiedzieć na interakcję komendy:', replyError.message);
+            }
+        }
+        return;
+    }
+    
+    // Obsługa autocomplete
+    if (interaction.isAutocomplete()) {
+        const command = client.commands.get(interaction.commandName);
+        if (!command || !command.autocomplete) return;
+        
+        try {
+            await command.autocomplete(interaction);
+        } catch (error) {
+            console.error('❌ Błąd podczas obsługi autocomplete:', error);
+        }
+        return;
+    }
+    
+    // Obsługa przycisków ankiet
+    if (interaction.isButton() && interaction.customId.startsWith('poll_vote_')) {
+        try {
+            await handlePollVote(interaction);
+        } catch (error) {
+            console.error('❌ Błąd podczas głosowania w ankiecie:', error);
+            const reply = {
+                content: '❌ Wystąpił błąd podczas głosowania.',
+                flags: 64 // MessageFlags.Ephemeral
+            };
+            
+            try {
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp(reply);
+                } else {
+                    await interaction.reply(reply);
+                }
+            } catch (replyError) {
+                console.error('❌ Nie można odpowiedzieć na interakcję głosowania:', replyError.message);
+            }
         }
     }
 });
@@ -385,13 +417,21 @@ async function handleReactionRole(reaction, user, action) {
             // Dodaj rolę
             if (!member.roles.cache.has(role.id)) {
                 await member.roles.add(role);
-                console.log(`✅ Dodano rolę ${role.name} użytkownikowi ${user.tag}`);
+                // Wyłącz powiadomienia dla kanału regulamin
+                const channel = reaction.message.channel;
+                if (channel.name !== '📜┃regulamin') {
+                    console.log(`✅ Dodano rolę ${role.name} użytkownikowi ${user.tag}`);
+                }
             }
         } else if (action === 'remove') {
             // Usuń rolę
             if (member.roles.cache.has(role.id)) {
                 await member.roles.remove(role);
-                console.log(`➖ Usunięto rolę ${role.name} użytkownikowi ${user.tag}`);
+                // Wyłącz powiadomienia dla kanału regulamin
+                const channel = reaction.message.channel;
+                if (channel.name !== '📜┃regulamin') {
+                    console.log(`➖ Usunięto rolę ${role.name} użytkownikowi ${user.tag}`);
+                }
             }
         }
 
@@ -665,10 +705,10 @@ async function handleMemberJoin(member) {
 }
 
 async function handleMemberLeave(member) {
-    const welcomeChannel = member.guild.channels.cache.get(WELCOME_CHANNEL_ID);
+    const leaveChannel = member.guild.channels.cache.get(LEAVE_CHANNEL_ID);
     const logChannel = member.guild.channels.cache.get(LOG_CHANNEL_ID);
     
-    if (welcomeChannel) {
+    if (leaveChannel) {
         const leaveEmbed = {
             color: 0xFF6B6B,
             title: '👋 Żegnamy użytkownika',
@@ -678,7 +718,7 @@ async function handleMemberLeave(member) {
             footer: { text: `Pozostało ${member.guild.memberCount} członków` }
         };
         
-        await welcomeChannel.send({ embeds: [leaveEmbed] });
+        await leaveChannel.send({ embeds: [leaveEmbed] });
     }
     
     // Log do kanału moderacji
@@ -701,7 +741,7 @@ async function handleMemberLeave(member) {
         await logChannel.send({ embeds: [logEmbed] });
     }
     
-    console.log(`👋 ${member.user.tag} opuścił serwer ${member.guild.name}`);
+
 }
 
 // Funkcja do wysyłania logów do kanału moderacji
@@ -712,7 +752,7 @@ async function sendLogToModerationChannel(guild, embed) {
             await logChannel.send({ embeds: [embed] });
         }
     } catch (error) {
-        console.error('Błąd podczas wysyłania loga do kanału moderacji:', error);
+
     }
 }
 
@@ -721,12 +761,10 @@ async function checkBF6News() {
     try {
         const channel = client.channels.cache.get(BF6_NEWS_CHANNEL_ID);
         if (!channel) {
-            console.error(`❌ Nie znaleziono kanału newsów BF6 o ID: ${BF6_NEWS_CHANNEL_ID}`);
-            console.log(`📋 Dostępne kanały: ${client.channels.cache.map(ch => `${ch.name} (${ch.id})`).join(', ')}`);
             return;
         }
 
-        console.log(`🔍 Sprawdzanie newsów Battlefield 6... Kanał: ${channel.name}`);
+
         
         // Przeładuj wysłane newsy z pliku przed każdym sprawdzeniem
         loadSentNews();
@@ -775,6 +813,9 @@ async function checkBF6News() {
                         // Zapisanie do pliku po każdym nowym newsie
                         saveSentNews();
                         
+                        // Log dla nowego newsa
+                        console.log(`📰 Znaleziono nowy news: ${latestItem.title}`);
+                        
                         // Ograniczenie rozmiaru Set (ostatnie 200 newsów)
                         if (client.lastNewsItems.size > 200) {
                             const itemsArray = Array.from(client.lastNewsItems);
@@ -782,19 +823,17 @@ async function checkBF6News() {
                             saveSentNews(); // Zapisz po oczyszczeniu
                         }
                         
-                        console.log(`✅ Wysłano najnowszy news BF6: ${latestItem.title}`);
+
                     } else {
-                        console.log(`⏭️ Najnowszy news już istnieje: ${latestItem.title}`);
+
                     }
                 }
                 
             } catch (feedError) {
-                console.error(`❌ Błąd podczas parsowania feed ${feedUrl}:`, feedError.message);
             }
         }
         
     } catch (error) {
-        console.error('❌ Błąd podczas sprawdzania newsów BF6:', error);
     }
 }
 
@@ -827,7 +866,6 @@ async function sendBF6NewsToChannel(channel, item, source) {
         console.log(`📰 Wysłano news BF6: ${item.title}`);
         
     } catch (error) {
-        console.error('❌ Błąd podczas wysyłania newsa:', error);
     }
 }
 
@@ -881,11 +919,9 @@ async function registerSlashCommands() {
 
 // Obsługa błędów
 client.on('error', error => {
-    console.error('❌ Błąd klienta Discord:', error);
 });
 
 process.on('unhandledRejection', error => {
-    console.error('❌ Nieobsłużone odrzucenie:', error);
 });
 
 // Logowanie bota
