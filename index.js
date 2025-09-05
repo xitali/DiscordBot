@@ -251,12 +251,17 @@ async function handleVoiceStateUpdate(oldState, newState) {
     
     // Użytkownik opuścił kanał - usuń pusty kanał
     if (oldState.channel && oldState.channel.id !== triggerChannelId && client.channelOwners.has(oldState.channel.id)) {
-        // Sprawdź czy kanał jest pusty
-        if (oldState.channel.members.size === 0) {
-            console.log(`🗑️ Usuwam pusty kanał: ${oldState.channel.name}`);
-            client.createdChannels.delete(client.channelOwners.get(oldState.channel.id));
-            client.channelOwners.delete(oldState.channel.id);
-            await oldState.channel.delete();
+        // Nie usuwaj kanału jeśli użytkownik przechodzi z trigger do swojego nowego kanału
+        const isMovingFromTrigger = oldState.channelId === triggerChannelId && newState.channel && client.channelOwners.get(newState.channel.id) === newState.member.id;
+        
+        if (!isMovingFromTrigger) {
+            // Sprawdź czy kanał jest pusty
+            if (oldState.channel.members.size === 0) {
+                console.log(`🗑️ Usuwam pusty kanał: ${oldState.channel.name}`);
+                client.createdChannels.delete(client.channelOwners.get(oldState.channel.id));
+                client.channelOwners.delete(oldState.channel.id);
+                await oldState.channel.delete();
+            }
         }
     }
 }
