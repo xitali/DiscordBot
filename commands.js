@@ -709,7 +709,7 @@ const BUMP_CHANNEL_ID = process.env.DISBOARD_BUMP_CHANNEL_ID || '142617019912342
 const bumpCommand = {
     data: new SlashCommandBuilder()
         .setName('bump')
-        .setDescription('Bumpuj serwer na Disboard (użyj w wyznaczonym kanale)'),
+        .setDescription('Wyślij przypomnienie o bumpie Disboard w wyznaczonym kanale'),
     async execute(interaction, client) {
         try {
             if (interaction.channelId !== BUMP_CHANNEL_ID) {
@@ -724,12 +724,13 @@ const bumpCommand = {
                 return;
             }
 
-            await channel.send('!d bump');
-            await safeReply(interaction, { content: '✅ Wysłano bump do Disboard.', flags: 64 });
-            console.log(`🚀 Bump Disboard wykonany przez ${interaction.user.tag} w kanale ${channel.name}`);
+            const reminder = '🚀 Czas na bump! Użyj komendy /bump (Disboard) w tym kanale, aby wypromować serwer.';
+            await channel.send(reminder);
+            await safeReply(interaction, { content: '✅ Wysłano przypomnienie o bumpie Disboard.', flags: 64 });
+            console.log(`🚀 Przypomnienie bump Disboard wysłane przez ${interaction.user.tag} w kanale ${channel.name}`);
         } catch (error) {
-            console.error('❌ Błąd podczas bumpowania Disboard:', error);
-            await safeReply(interaction, { content: '❌ Wystąpił błąd podczas bumpowania.', flags: 64 });
+            console.error('❌ Błąd podczas wysyłania przypomnienia Disboard:', error);
+            await safeReply(interaction, { content: '❌ Wystąpił błąd podczas wysyłania przypomnienia.', flags: 64 });
         }
     }
 };

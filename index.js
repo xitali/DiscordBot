@@ -1054,10 +1054,11 @@ async function sendDisboardBump() {
             console.warn('⚠️ Nie znaleziono kanału Disboard bump.');
             return;
         }
-        await channel.send('!d bump');
-        console.log('🚀 Automatyczny bump Disboard wysłany.');
+        const reminder = '⏰ Czas na bump! Proszę użyć komendy /bump (Disboard) w tym kanale, aby wypromować serwer.';
+        await channel.send(reminder);
+        console.log('🚀 Automatyczne przypomnienie bump Disboard wysłane.');
     } catch (error) {
-        console.error('❌ Błąd podczas automatycznego bumpa Disboard:', error);
+        console.error('❌ Błąd podczas wysyłania automatycznego przypomnienia Disboard:', error);
     }
 }
 
