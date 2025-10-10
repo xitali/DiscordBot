@@ -46,6 +46,8 @@ const BF6_NEWS_CHANNEL_ID = '1412920468540883026';
 const RSS_FEEDS = [
     'https://gameranx.com/tag/battlefield/feed/',
 ];
+// Disboard bump channel ID (env or fallback)
+const DISBOARD_BUMP_CHANNEL_ID = process.env.DISBOARD_BUMP_CHANNEL_ID || '1426170199123427399';
 
 // Plik do przechowywania już wysłanych newsów
 const NEWS_STORAGE_FILE = './sent_news.json';
@@ -110,6 +112,9 @@ client.once('clientReady', async () => {
 
     await checkBF6News(); // Pierwsze sprawdzenie
     startBF6NewsScheduler(); // Uruchomienie harmonogramu
+
+    // Uruchomienie harmonogramu bumpów Disboard (losowo co 2–3h)
+    startDisboardBumpScheduler();
 });
 
 // Funkcja czyszczenia pustych kanałów głosowych przy starcie bota
@@ -1032,3 +1037,39 @@ process.on('unhandledRejection', error => {
 client.login(process.env.DISCORD_TOKEN);
 
 module.exports = client;
+
+
+// Automatyczny bump Disboard co losowy czas 2–3h
+function getRandomIntervalMs(minHours = 2, maxHours = 3) {
+    const minMs = minHours * 60 * 60 * 1000;
+    const maxMs = maxHours * 60 * 60 * 1000;
+    return Math.floor(minMs + Math.random() * (maxMs - minMs));
+}
+
+async function sendDisboardBump() {
+    try {
+        const channelId = DISBOARD_BUMP_CHANNEL_ID;
+        const channel = client.channels.cache.get(channelId);
+        if (!channel) {
+            console.warn('⚠️ Nie znaleziono kanału Disboard bump.');
+            return;
+        }
+        await channel.send('!d bump');
+        console.log('🚀 Automatyczny bump Disboard wysłany.');
+    } catch (error) {
+        console.error('❌ Błąd podczas automatycznego bumpa Disboard:', error);
+    }
+}
+
+function startDisboardBumpScheduler() {
+    const scheduleNext = () => {
+        const interval = getRandomIntervalMs(2, 3);
+        console.log(`⏰ Następny bump Disboard za ~${Math.round(interval / 60000)} min.`);
+        setTimeout(async () => {
+            await sendDisboardBump();
+            scheduleNext();
+        }, interval);
+    };
+    scheduleNext();
+    console.log('✅ Harmonogram bumpów Disboard uruchomiony (losowo co 2–3h)');
+}
