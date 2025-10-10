@@ -48,7 +48,8 @@ const RSS_FEEDS = [
 ];
 // Disboard bump channel ID (env or fallback)
 const DISBOARD_BUMP_CHANNEL_ID = process.env.DISBOARD_BUMP_CHANNEL_ID || '1426170199123427399';
-const DISBOARD_BOT_ID = '302050872383242240';
+// Disboard integration disabled: listener off
+const DISBOARD_BOT_ID = '';
 
 // Plik do przechowywania już wysłanych newsów
 const NEWS_STORAGE_FILE = './sent_news.json';
@@ -114,8 +115,8 @@ client.once('clientReady', async () => {
     await checkBF6News(); // Pierwsze sprawdzenie
     startBF6NewsScheduler(); // Uruchomienie harmonogramu
 
-    // Uruchomienie harmonogramu bumpów Disboard (losowo co 2–3h)
-    startDisboardBumpScheduler();
+    // Uruchomienie harmonogramu newsów BF6
+startBf6NewsScheduler();
 });
 
 // Funkcja czyszczenia pustych kanałów głosowych przy starcie bota
@@ -1047,36 +1048,14 @@ function getRandomIntervalMs(minHours = 2, maxHours = 3) {
     return Math.floor(minMs + Math.random() * (maxMs - minMs));
 }
 
-async function sendDisboardBump() {
-    try {
-        const channelId = DISBOARD_BUMP_CHANNEL_ID;
-        const channel = client.channels.cache.get(channelId);
-        if (!channel) {
-            console.warn('⚠️ Nie znaleziono kanału Disboard bump.');
-            return;
-        }
-        await channel.send('/bump');
-        console.log('🚀 Automatyczny bump Disboard wysłany (tekst /bump).');
-    } catch (error) {
-        console.error('❌ Błąd podczas wysyłania automatycznego bumpa Disboard:', error);
-    }
-}
-
-let disboardNextTimer = null;
-function scheduleNextDisboardBump() {
-    const interval = getRandomIntervalMs(2, 3);
-    console.log(`⏰ Następny bump Disboard za ~${Math.round(interval / 60000)} min.`);
-    if (disboardNextTimer) clearTimeout(disboardNextTimer);
-    disboardNextTimer = setTimeout(async () => {
-        await sendDisboardBump();
-        // Nie planujemy kolejnego od razu; czekamy na odpowiedź Disboard
-    }, interval);
-}
-function startDisboardBumpScheduler() {
-    scheduleNextDisboardBump();
-    console.log('✅ Harmonogram bumpów Disboard uruchomiony (losowo co 2–3h)');
-}
-
+// ...existing code ...
+// (Removed) async function sendDisboardBump() { /* ... */ }
+// ... existing code ...
+// (Removed) let disboardNextTimer = null; function scheduleNextDisboardBump() { /* ... */ }
+// ... existing code ...
+// (Removed) function startDisboardBumpScheduler() { /* ... */ }
+// ... existing code ...
+// (Removed) Listener messageCreate echo odpowiedzi Disboard
 client.on('messageCreate', async (message) => {
     try {
         if (!message.author || message.author.bot === false) return;

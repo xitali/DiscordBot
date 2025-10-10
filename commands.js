@@ -703,7 +703,7 @@ async function handleConfigReset(interaction) {
 }
 
 // Disboard bump channel (env or fallback)
-const BUMP_CHANNEL_ID = process.env.DISBOARD_BUMP_CHANNEL_ID || '1426170199123427399';
+// const BUMP_CHANNEL_ID = process.env.DISBOARD_BUMP_CHANNEL_ID || '1426170199123427399';
 
 // Komenda /bump do bumpowania serwera na Disboard (tylko w wyznaczonym kanale)
 const bumpCommand = {
@@ -735,6 +735,6 @@ const bumpCommand = {
 };
 
 module.exports = {
-    commands: [channelCommand, authCommand, clearCommand, adminCommand, bumpCommand, ...moderationCommands, ...pollCommands],
+    commands: [channelCommand, authCommand, clearCommand, adminCommand, ...moderationCommands, ...pollCommands],
     getChannelPrefix
 };
