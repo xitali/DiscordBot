@@ -48,6 +48,7 @@ const RSS_FEEDS = [
 ];
 // Disboard bump channel ID (env or fallback)
 const DISBOARD_BUMP_CHANNEL_ID = process.env.DISBOARD_BUMP_CHANNEL_ID || '1426170199123427399';
+const DISBOARD_BOT_ID = '302050872383242240';
 
 // Plik do przechowywania już wysłanych newsów
 const NEWS_STORAGE_FILE = './sent_news.json';
@@ -1054,11 +1055,10 @@ async function sendDisboardBump() {
             console.warn('⚠️ Nie znaleziono kanału Disboard bump.');
             return;
         }
-        const reminder = '⏰ Czas na bump! Proszę użyć komendy /bump (Disboard) w tym kanale, aby wypromować serwer.';
-        await channel.send(reminder);
-        console.log('🚀 Automatyczne przypomnienie bump Disboard wysłane.');
+        await channel.send('/bump');
+        console.log('🚀 Automatyczny bump Disboard wysłany (tekst /bump).');
     } catch (error) {
-        console.error('❌ Błąd podczas wysyłania automatycznego przypomnienia Disboard:', error);
+        console.error('❌ Błąd podczas wysyłania automatycznego bumpa Disboard:', error);
     }
 }
 
@@ -1074,3 +1074,30 @@ function startDisboardBumpScheduler() {
     scheduleNext();
     console.log('✅ Harmonogram bumpów Disboard uruchomiony (losowo co 2–3h)');
 }
+// Echo odpowiedzi bota Disboard w kanale bump
+client.on('messageCreate', async (message) => {
+    try {
+        if (!message.author || message.author.bot === false) return;
+        if (message.author.id !== DISBOARD_BOT_ID) return;
+        if (message.channelId !== DISBOARD_BUMP_CHANNEL_ID) return;
+
+        let text = message.content || '';
+        if ((!text || text.trim().length === 0) && message.embeds && message.embeds.length > 0) {
+            const e = message.embeds[0];
+            const parts = [];
+            if (e.title) parts.push(e.title);
+            if (e.description) parts.push(e.description);
+            if (e.fields && e.fields.length) {
+                for (const f of e.fields) {
+                    parts.push(`${f.name}: ${f.value}`);
+                }
+            }
+            text = parts.join('\n');
+        }
+        if (!text || text.trim().length === 0) text = '(brak treści odpowiedzi)';
+
+        await message.channel.send(`📣 Odpowiedź Disboard: ${text}`);
+    } catch (error) {
+        console.error('❌ Błąd podczas echo odpowiedzi Disboard:', error);
+    }
+});
