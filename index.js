@@ -115,8 +115,7 @@ client.once('clientReady', async () => {
     await checkBF6News(); // Pierwsze sprawdzenie
     startBF6NewsScheduler(); // Uruchomienie harmonogramu
 
-    // Uruchomienie harmonogramu newsów BF6
-startBf6NewsScheduler();
+    startBF6NewsScheduler(); // Uruchomienie harmonogramu
 });
 
 // Funkcja czyszczenia pustych kanałów głosowych przy starcie bota
@@ -1042,11 +1041,7 @@ module.exports = client;
 
 
 // Automatyczny bump Disboard co losowy czas 2–3h
-function getRandomIntervalMs(minHours = 2, maxHours = 3) {
-    const minMs = minHours * 60 * 60 * 1000;
-    const maxMs = maxHours * 60 * 60 * 1000;
-    return Math.floor(minMs + Math.random() * (maxMs - minMs));
-}
+
 
 // ...existing code ...
 // (Removed) async function sendDisboardBump() { /* ... */ }
