@@ -1062,19 +1062,21 @@ async function sendDisboardBump() {
     }
 }
 
+let disboardNextTimer = null;
+function scheduleNextDisboardBump() {
+    const interval = getRandomIntervalMs(2, 3);
+    console.log(`⏰ Następny bump Disboard za ~${Math.round(interval / 60000)} min.`);
+    if (disboardNextTimer) clearTimeout(disboardNextTimer);
+    disboardNextTimer = setTimeout(async () => {
+        await sendDisboardBump();
+        // Nie planujemy kolejnego od razu; czekamy na odpowiedź Disboard
+    }, interval);
+}
 function startDisboardBumpScheduler() {
-    const scheduleNext = () => {
-        const interval = getRandomIntervalMs(2, 3);
-        console.log(`⏰ Następny bump Disboard za ~${Math.round(interval / 60000)} min.`);
-        setTimeout(async () => {
-            await sendDisboardBump();
-            scheduleNext();
-        }, interval);
-    };
-    scheduleNext();
+    scheduleNextDisboardBump();
     console.log('✅ Harmonogram bumpów Disboard uruchomiony (losowo co 2–3h)');
 }
-// Echo odpowiedzi bota Disboard w kanale bump
+
 client.on('messageCreate', async (message) => {
     try {
         if (!message.author || message.author.bot === false) return;
@@ -1097,6 +1099,8 @@ client.on('messageCreate', async (message) => {
         if (!text || text.trim().length === 0) text = '(brak treści odpowiedzi)';
 
         await message.channel.send(`📣 Odpowiedź Disboard: ${text}`);
+        // Po odpowiedzi Disboard zaczynamy nowy cykl z losowym interwałem
+        scheduleNextDisboardBump();
     } catch (error) {
         console.error('❌ Błąd podczas echo odpowiedzi Disboard:', error);
     }
