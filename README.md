@@ -7,7 +7,7 @@ Bot Discord do automatycznego tworzenia kanałów głosowych dla użytkowników.
 ### Kanały głosowe
 - **Automatyczne tworzenie kanałów**: Gdy użytkownik dołączy do kanału trigger, tworzy się nowy kanał głosowy
 - **Personalizowane nazwy**: Kanały mają format `[BF6] {displayname}` gdzie displayname to nazwa użytkownika na serwerze
-- **Uprawnienia właściciela**: Twórca kanału może zmieniać jego nazwę i ustawiać limit osób (2-5, domyślnie 5)
+- **Uprawnienia właściciela**: Twórca kanału może zmieniać jego nazwę i ustawiać limit osób (2-20, domyślnie 5)
 - **Automatyczne usuwanie**: Puste kanały są automatycznie usuwane po 5 sekundach
 - **Komendy administratora**: Administratorzy mogą zmieniać nazwy kanałów i prefix przez komendy slash
 - **Konfigurowalny prefix**: Możliwość zmiany prefiksu kanałów z domyślnego `[BF6]`
@@ -104,7 +104,7 @@ npm run dev
 ### Dla użytkowników
 
 #### `/channel limit <liczba>`
-Ustawia limit osób w swoim kanale głosowym (tylko wartości: 2, 3, 4, 5)
+Ustawia limit osób w swoim kanale głosowym (zakres: 2–20)
 
 **Przykład:**
 ```

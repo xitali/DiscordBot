@@ -85,19 +85,13 @@ const channelCommand = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('limit')
-                .setDescription('Ustaw limit osób w kanale (2-5)')
+                .setDescription('Ustaw limit osób w kanale (2-20)')
                 .addIntegerOption(option =>
                     option.setName('liczba')
-                        .setDescription('Liczba osób (2-5)')
+                        .setDescription('Liczba osób (2-20)')
                         .setRequired(true)
                         .setMinValue(2)
-                        .setMaxValue(5)
-                        .addChoices(
-                            { name: '2 osoby', value: 2 },
-                            { name: '3 osoby', value: 3 },
-                            { name: '4 osoby', value: 4 },
-                            { name: '5 osób', value: 5 }
-                        )))
+                        .setMaxValue(20)))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('rename')
@@ -134,8 +128,8 @@ const channelCommand = {
 async function handleChannelLimit(interaction, channel) {
     const limit = interaction.options.getInteger('liczba');
     
-    // Walidacja - tylko wartości 2-5 są dozwolone
-    if (limit < 2 || limit > 5) {
+    // Walidacja - dozwolone wartości 2-20
+    if (limit < 2 || limit > 20) {
         return;
     }
     
