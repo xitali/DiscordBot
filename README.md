@@ -255,3 +255,23 @@ Jeśli napotkasz problemy:
 **Autor:** Discord Voice Channel Bot  
 **Wersja:** 1.0.0  
 **Ostatnia aktualizacja:** 2024
+
+#### `/prompt <tekst> [publiczne]`
+Wysyła zapytanie do zewnętrznego bota AI i zwraca odpowiedź.
+- Parametry:
+  - `tekst` — treść zapytania (wymagane)
+  - `publiczne` — czy odpowiedź ma być publiczna w kanale (domyślnie: tak)
+- Uprawnienia: tylko administratorzy
+
+**Przykład:**
+```
+/prompt tekst:"Przygotuj strategię dla 64-osobowego meczu BF6"
+```
+
+## 🔧 Konfiguracja AI
+Dodaj do `.env`:
+```
+AI_PROMPT_URL=https://twoj-serwer.local/api/prompt
+AI_API_KEY=opcjonalny_klucz_bearer
+```
+Endpoint powinien przyjmować `POST` z payloadem `{ "prompt": "..." }` i zwracać JSON z polem `reply` (lub `response`).

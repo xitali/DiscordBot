@@ -2,6 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { commands: moderationCommands } = require('./moderation');
 const { commands: pollCommands } = require('./polls');
 const { loadConfig, saveConfig } = require('./auto-moderation');
+const https = require('https');
 
 // Funkcja bezpiecznej odpowiedzi na interakcje
 async function safeReply(interaction, options) {
@@ -729,6 +730,84 @@ const bumpCommand = {
 };
 
 module.exports = {
-    commands: [channelCommand, authCommand, clearCommand, adminCommand, ...moderationCommands, ...pollCommands],
+    commands: [channelCommand, authCommand, clearCommand, adminCommand, promptCommand, ...moderationCommands, ...pollCommands],
     getChannelPrefix
+};
+
+// Wywołanie zewnętrznego endpointu AI z promptem
+async function callAIBot(prompt) {
+    const url = process.env.AI_PROMPT_URL;
+    const apiKey = process.env.AI_API_KEY;
+    if (!url) {
+        throw new Error('Brak konfiguracji AI_PROMPT_URL');
+    }
+    const parsed = new URL(url);
+    const payload = JSON.stringify({ prompt });
+    const options = {
+        method: 'POST',
+        hostname: parsed.hostname,
+        path: parsed.pathname + (parsed.search || ''),
+        port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload),
+            ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {})
+        }
+    };
+    return await new Promise((resolve, reject) => {
+        const req = https.request(options, res => {
+            let data = '';
+            res.on('data', chunk => (data += chunk));
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data || '{}');
+                    const reply = json.reply || json.response || json.data || data;
+                    resolve(String(reply));
+                } catch (e) {
+                    resolve(data);
+                }
+            });
+        });
+        req.on('error', reject);
+        req.write(payload);
+        req.end();
+    });
+}
+// Komenda /prompt do zapytań do zewnętrznego bota AI (tylko administratorzy)
+const promptCommand = {
+    data: new SlashCommandBuilder()
+        .setName('prompt')
+        .setDescription('Wyślij zapytanie do bota AI')
+        .addStringOption(option =>
+            option.setName('tekst')
+                .setDescription('Treść zapytania do AI')
+                .setRequired(true)
+                .setMaxLength(4000))
+        .addBooleanOption(option =>
+            option.setName('publiczne')
+                .setDescription('Czy odpowiedź ma być publiczna w kanale?')
+                .setRequired(false))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    async execute(interaction, client) {
+        try {
+            const text = interaction.options.getString('tekst');
+            const isPublic = interaction.options.getBoolean('publiczne') ?? true;
+            await interaction.deferReply({ ephemeral: !isPublic });
+            const reply = await callAIBot(text);
+            const content = `🤖 ${reply}`;
+            if (interaction.deferred) {
+                await interaction.editReply({ content });
+            } else {
+                await interaction.reply({ content, flags: isPublic ? undefined : 64 });
+            }
+        } catch (error) {
+            console.error('❌ Błąd podczas wykonywania /prompt:', error);
+            const msg = '❌ Nie udało się uzyskać odpowiedzi od AI. Sprawdź AI_PROMPT_URL i AI_API_KEY.';
+            if (interaction.deferred) {
+                await interaction.editReply({ content: msg });
+            } else {
+                await interaction.reply({ content: msg, flags: 64 });
+            }
+        }
+    }
 };
