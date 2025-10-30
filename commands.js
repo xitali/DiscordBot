@@ -697,43 +697,6 @@ async function handleConfigReset(interaction) {
     }
 }
 
-// Disboard bump channel (env or fallback)
-// const BUMP_CHANNEL_ID = process.env.DISBOARD_BUMP_CHANNEL_ID || '1426170199123427399';
-
-// Komenda /bump do bumpowania serwera na Disboard (tylko w wyznaczonym kanale)
-const bumpCommand = {
-    data: new SlashCommandBuilder()
-        .setName('bump')
-        .setDescription('Wyślij komendę /bump (Disboard) w wyznaczonym kanale'),
-    async execute(interaction, client) {
-        try {
-            if (interaction.channelId !== BUMP_CHANNEL_ID) {
-                await safeReply(interaction, { content: `❌ Tę komendę możesz użyć tylko w <#${BUMP_CHANNEL_ID}>.`, flags: 64 });
-                return;
-            }
-
-            const guild = interaction.guild;
-            const channel = guild.channels.cache.get(BUMP_CHANNEL_ID) || await guild.channels.fetch(BUMP_CHANNEL_ID).catch(() => null);
-            if (!channel) {
-                await safeReply(interaction, { content: '❌ Nie znaleziono kanału bump.', flags: 64 });
-                return;
-            }
-
-            await channel.send('/bump');
-            await safeReply(interaction, { content: '✅ Wysłano komendę /bump (Disboard).', flags: 64 });
-            console.log(`🚀 Komenda /bump (Disboard) wysłana przez ${interaction.user.tag} w kanale ${channel.name}`);
-        } catch (error) {
-            console.error('❌ Błąd podczas wysyłania komendy /bump (Disboard):', error);
-            await safeReply(interaction, { content: '❌ Wystąpił błąd podczas wysyłania.', flags: 64 });
-        }
-    }
-};
-
-module.exports = {
-    commands: [channelCommand, authCommand, clearCommand, adminCommand, promptCommand, ...moderationCommands, ...pollCommands],
-    getChannelPrefix
-};
-
 // Wywołanie zewnętrznego endpointu AI z promptem
 async function callAIBot(prompt) {
     const url = process.env.AI_PROMPT_URL;
@@ -773,6 +736,7 @@ async function callAIBot(prompt) {
         req.end();
     });
 }
+
 // Komenda /prompt do zapytań do zewnętrznego bota AI (tylko administratorzy)
 const promptCommand = {
     data: new SlashCommandBuilder()
@@ -810,4 +774,9 @@ const promptCommand = {
             }
         }
     }
+};
+
+module.exports = {
+    commands: [channelCommand, authCommand, clearCommand, adminCommand, promptCommand, ...moderationCommands, ...pollCommands],
+    getChannelPrefix
 };
