@@ -1,0 +1,32 @@
+[Unit]
+Description=Discord Bot - Automatyczne zarządzanie kanałami głosowymi
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+User=ZMIEN_NA_TWOJA_NAZWE_UZYTKOWNIKA
+WorkingDirectory=/home/ZMIEN_NA_TWOJA_NAZWE_UZYTKOWNIKA/DiscordBot
+ExecStart=/usr/bin/node index.js
+Environment=NODE_ENV=production
+
+# Przekierowanie logów do systemd journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=discord-bot
+
+# Ograniczenia zasobów (opcjonalne)
+MemoryMax=512M
+CPUQuota=50%
+
+# Bezpieczeństwo
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/ZMIEN_NA_TWOJA_NAZWE_UZYTKOWNIKA/DiscordBot
+
+[Install]
+WantedBy=multi-user.target
