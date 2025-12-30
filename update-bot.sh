@@ -44,6 +44,14 @@ fi
 echo "📋 Nowe zmiany:"
 git log --oneline $LOCAL..$REMOTE
 
+# Zabezpieczenie na lokalne zmiany (żeby git pull nie wywalił się)
+STASHED=0
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "⚠️  Wykryto lokalne zmiany w repo. Robię stash przed aktualizacją..."
+    git stash push -u -m "update-bot.sh auto-stash $(date +%Y%m%d_%H%M%S)" >/dev/null
+    STASHED=1
+fi
+
 # Backup pliku .env
 if [ -f ".env" ]; then
     echo "💾 Tworzenie backupu .env..."
@@ -53,6 +61,18 @@ fi
 # Pobierz zmiany
 echo "⬇️  Pobieranie zmian..."
 git pull origin main
+
+if [ "$STASHED" -eq 1 ]; then
+    echo "🔁 Przywracanie lokalnych zmian ze stasha..."
+    if ! git stash pop >/dev/null; then
+        echo "❌ Nie udało się automatycznie przywrócić stasha (konflikt)."
+        echo "   Rozwiąż konflikty, albo cofnij przywracanie:"
+        echo "   git reset --hard"
+        echo "   git stash list"
+        echo "   git stash apply stash@{0}"
+        exit 1
+    fi
+fi
 
 # Sprawdź czy package.json się zmienił
 if git diff --name-only $LOCAL $REMOTE | grep -q "package.json"; then
