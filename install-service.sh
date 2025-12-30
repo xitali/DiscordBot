@@ -21,6 +21,14 @@ BOT_DIR=$(pwd)
 echo "👤 Użytkownik: $USERNAME"
 echo "📁 Katalog bota: $BOT_DIR"
 
+# Przejdź do katalogu bota
+if [ ! -d "$BOT_DIR" ]; then
+    echo "❌ Katalog bota nie istnieje: $BOT_DIR"
+    exit 1
+fi
+
+cd "$BOT_DIR"
+
 # Sprawdź czy jesteśmy w katalogu z botem
 if [ ! -f "index.js" ] || [ ! -f "package.json" ]; then
     echo "❌ Nie znaleziono plików bota (index.js, package.json)"
@@ -84,7 +92,7 @@ CPUQuota=50%
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=true
+ProtectHome=read-only
 ReadWritePaths=$BOT_DIR
 
 [Install]

@@ -6,6 +6,17 @@ const { handlePollVote } = require('./polls');
 const Parser = require('rss-parser');
 const cron = require('node-cron');
 
+const DEFAULT_TRIGGER_CHANNEL_ID = '1455600906312745081';
+const DEFAULT_VOICE_CATEGORY_ID = '1412920201724563629';
+
+function getTriggerChannelId() {
+    return process.env.TRIGGER_CHANNEL_ID || DEFAULT_TRIGGER_CHANNEL_ID;
+}
+
+function getVoiceCategoryId() {
+    return process.env.VOICE_CATEGORY_ID || DEFAULT_VOICE_CATEGORY_ID;
+}
+
 // Inicjalizacja klienta Discord
 const client = new Client({
     intents: [
@@ -36,7 +47,30 @@ client.reactionRoles = new Collection();
 const WELCOME_CHANNEL_ID = '1412924338163945532'; // Kanał 👋┃przedstaw-się
 const LEAVE_CHANNEL_ID = '1412923730958487703'; // Kanał 💬┃chat
 const LOG_CHANNEL_ID = '1412925469338107945'; // Kanał moderacji
-const VOICE_CATEGORY_ID = '1412920201724563629'; // Kategoria głosowa
+
+async function resolveChannelSafe(guild, channelId) {
+    if (!channelId) return null;
+    return guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId).catch(() => null);
+}
+
+async function ensureVoiceConfig() {
+    const configuredTriggerId = process.env.TRIGGER_CHANNEL_ID;
+    const configuredCategoryId = process.env.VOICE_CATEGORY_ID;
+
+    for (const guild of client.guilds.cache.values()) {
+        const category = await resolveChannelSafe(guild, configuredCategoryId || DEFAULT_VOICE_CATEGORY_ID);
+        if (!category && configuredCategoryId && configuredCategoryId !== DEFAULT_VOICE_CATEGORY_ID) {
+            const fallbackCategory = await resolveChannelSafe(guild, DEFAULT_VOICE_CATEGORY_ID);
+            if (fallbackCategory) process.env.VOICE_CATEGORY_ID = DEFAULT_VOICE_CATEGORY_ID;
+        }
+
+        const trigger = await resolveChannelSafe(guild, configuredTriggerId || DEFAULT_TRIGGER_CHANNEL_ID);
+        if (!trigger && configuredTriggerId && configuredTriggerId !== DEFAULT_TRIGGER_CHANNEL_ID) {
+            const fallbackTrigger = await resolveChannelSafe(guild, DEFAULT_TRIGGER_CHANNEL_ID);
+            if (fallbackTrigger) process.env.TRIGGER_CHANNEL_ID = DEFAULT_TRIGGER_CHANNEL_ID;
+        }
+    }
+}
 
 // Konfiguracja RSS parser dla newsów Battlefield 6
 const fs = require('fs');
@@ -94,6 +128,8 @@ client.once('clientReady', async () => {
     
     // Ustawienie statusu bota
     client.user.setActivity('Tworzenie kanałów głosowych', { type: 'WATCHING' });
+
+    await ensureVoiceConfig();
     
     // Czyszczenie pustych kanałów głosowych przy starcie
 
@@ -122,7 +158,8 @@ client.once('clientReady', async () => {
 async function cleanupEmptyVoiceChannels() {
     try {
         for (const guild of client.guilds.cache.values()) {
-            const category = guild.channels.cache.get(VOICE_CATEGORY_ID);
+            const categoryId = getVoiceCategoryId();
+            const category = guild.channels.cache.get(categoryId);
             if (!category) {
 
                 continue;
@@ -224,8 +261,8 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 
 // PROSTA LOGIKA TWORZENIA KANAŁÓW - BEZ SKOMPLIKOWANYCH MECHANIZMÓW
 async function handleVoiceStateUpdate(oldState, newState) {
-    const triggerChannelId = process.env.TRIGGER_CHANNEL_ID;
-    const voiceCategoryId = process.env.VOICE_CATEGORY_ID;
+    const triggerChannelId = getTriggerChannelId();
+    const voiceCategoryId = getVoiceCategoryId();
     
     // Użytkownik wszedł na kanał trigger - utwórz mu kanał
     if (newState.channelId === triggerChannelId) {

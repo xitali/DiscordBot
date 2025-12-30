@@ -8,7 +8,7 @@ Type=simple
 Restart=always
 RestartSec=5
 User=ZMIEN_NA_TWOJA_NAZWE_UZYTKOWNIKA
-WorkingDirectory=/home/ZMIEN_NA_TWOJA_NAZWE_UZYTKOWNIKA/DiscordBot
+WorkingDirectory=/DiscordBot
 ExecStart=/usr/bin/node index.js
 Environment=NODE_ENV=production
 
@@ -25,8 +25,8 @@ CPUQuota=50%
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/home/ZMIEN_NA_TWOJA_NAZWE_UZYTKOWNIKA/DiscordBot
+ProtectHome=read-only
+ReadWritePaths=/DiscordBot
 
 [Install]
 WantedBy=multi-user.target
